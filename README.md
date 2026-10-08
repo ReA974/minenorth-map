@@ -52,3 +52,7 @@ Points stockés dans `world/data/minenorth_map_waypoints.dat`, synchronisés en 
 
 ## Config client
 `config/minenorth_map-client.toml` : taille/position/zoom de la minicarte, coordonnées, guidage.
+
+## API pour les autres mods (repères poussés par le serveur)
+`fr.minenorth.map.api.MapApi` (appel par réflexion) : `setMarker(joueur, nom, dimension, x, y, z, couleur, guidage)`, `removeMarker`, `clearMarkers(préfixe)`.
+Les repères n'existent que chez le joueur visé, ne sont pas sauvegardés et s'effacent à l'arrivée si le guidage est actif. Utilisé par le mod Secours (incendies, blessés).
