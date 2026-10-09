@@ -56,3 +56,9 @@ Points stockés dans `world/data/minenorth_map_waypoints.dat`, synchronisés en 
 ## API pour les autres mods (repères poussés par le serveur)
 `fr.minenorth.map.api.MapApi` (appel par réflexion) : `setMarker(joueur, nom, dimension, x, y, z, couleur, guidage)`, `removeMarker`, `clearMarkers(préfixe)`.
 Les repères n'existent que chez le joueur visé, ne sont pas sauvegardés et s'effacent à l'arrivée si le guidage est actif. Utilisé par le mod Secours (incendies, blessés).
+
+## Licence
+
+**Tous droits réservés - MineNorthRP.** Réutilisation, copie, modification, décompilation / ingénierie
+inverse (y compris par outils d'intelligence artificielle) et utilisation pour entraîner une IA sont
+**interdites** sans autorisation écrite. Voir [LICENSE](LICENSE).
