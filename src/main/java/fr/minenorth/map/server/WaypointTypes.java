@@ -23,6 +23,9 @@ public final class WaypointTypes {
             "transport;Transport;00ACC1",
             "loisir;Loisir;EC407A",
             "logement;Logement;795548",
+            "recolte;Récolte;9CCC65",
+            "traitement;Traitement;26A69A",
+            "garage;Garage;607D8B",
             "autre;Autre;FDD835");
 
     private static Map<String, WaypointType> parse(List<? extends String> lines) {
@@ -48,7 +51,31 @@ public final class WaypointTypes {
             m = new LinkedHashMap<>();
         }
         if (m.isEmpty()) m = parse(DEFAULTS);
-        return m;
+        return withBuiltins(m);
+    }
+
+    /** Types de base ajoutés après coup : une config serveur déjà écrite ne les contient pas (id, libellé, couleur). */
+    private static final String[][] BUILTINS = {
+            {"recolte", "Récolte", "9CCC65"}, {"traitement", "Traitement", "26A69A"}, {"garage", "Garage", "607D8B"}};
+
+    /**
+     * Tant que la config ne définit pas elle-même un de ces types (pour changer sa couleur ou son libellé), il est ajouté juste avant
+     * « autre » : pas besoin de modifier une config déjà écrite.
+     */
+    private static Map<String, WaypointType> withBuiltins(Map<String, WaypointType> m) {
+        Map<String, WaypointType> out = new LinkedHashMap<>();
+        for (Map.Entry<String, WaypointType> e : m.entrySet()) {
+            if (e.getKey().equals(Waypoint.DEFAULT_TYPE)) addMissing(out, m);
+            out.put(e.getKey(), e.getValue());
+        }
+        addMissing(out, m);   // pas de « autre » dans la config : à la fin
+        return out;
+    }
+
+    private static void addMissing(Map<String, WaypointType> out, Map<String, WaypointType> config) {
+        for (String[] t : BUILTINS) {
+            if (!config.containsKey(t[0])) out.putIfAbsent(t[0], new WaypointType(t[0], t[1], Integer.parseInt(t[2], 16)));
+        }
     }
 
     public static List<WaypointType> list() { return new ArrayList<>(all().values()); }

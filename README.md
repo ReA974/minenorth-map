@@ -77,3 +77,8 @@ Les repères n'existent que chez le joueur visé, ne sont pas sauvegardés et s'
 **Tous droits réservés - MineNorthRP.** Réutilisation, copie, modification, décompilation / ingénierie
 inverse (y compris par outils d'intelligence artificielle) et utilisation pour entraîner une IA sont
 **interdites** sans autorisation écrite. Voir [LICENSE](LICENSE).
+
+## Configuration serveur et types de points
+- La config serveur est dans `config/minenorth_map-server.toml` (type COMMON). Elle était auparavant dans `<monde>/serverconfig/` (type SERVER), qui revenait à zéro à chaque redémarrage sur certains serveurs : copier l'ancien fichier une fois.
+- Types de base ajoutés automatiquement avant « autre » s'ils ne sont pas dans `types` : `recolte`, `traitement`, `garage`.
+- `/carte point typegroupe <préfixe> <type>` change le type de tous les points dont le nom commence par le préfixe (ex. `Garage_`).

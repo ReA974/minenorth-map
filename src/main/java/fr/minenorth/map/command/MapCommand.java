@@ -144,6 +144,10 @@ public final class MapCommand {
                                 .then(Commands.argument("nom", StringArgumentType.string()).suggests(NAMES)
                                         .then(Commands.argument("type", StringArgumentType.word()).suggests(TYPE_SUGGEST)
                                                 .executes(MapCommand::retype))))
+                        .then(Commands.literal("typegroupe")
+                                .then(Commands.argument("prefixe", StringArgumentType.string())
+                                        .then(Commands.argument("type", StringArgumentType.word()).suggests(TYPE_SUGGEST)
+                                                .executes(MapCommand::retypeGroup))))
                         .then(Commands.literal("types").executes(MapCommand::types))
                         .then(Commands.literal("lier")
                                 .then(Commands.argument("nom", StringArgumentType.string()).suggests(NAMES)
@@ -265,6 +269,23 @@ public final class MapCommand {
         src.sendSystemMessage(Component.literal("Type de ").withStyle(ChatFormatting.GREEN).append(label(w, t))
                 .append(Component.literal(" : " + t.label()).withStyle(ChatFormatting.GREEN)));
         return 1;
+    }
+
+    /** /carte point typegroupe <prefixe> <type> : change le type de tous les points dont le nom commence par le préfixe (ex. Garage_). */
+    private static int retypeGroup(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
+        CommandSourceStack src = c.getSource();
+        String prefix = StringArgumentType.getString(c, "prefixe").toLowerCase(java.util.Locale.ROOT);
+        WaypointType t = type(c);
+        WaypointSavedData data = WaypointSavedData.get(src.getServer());
+        int n = 0;
+        for (Waypoint w : data.snapshot()) {
+            if (!w.name().toLowerCase(java.util.Locale.ROOT).startsWith(prefix) || w.type().equals(t.id())) continue;
+            data.put(w.withType(t.id()));
+            n++;
+        }
+        if (n > 0) changed(src);
+        src.sendSystemMessage(Component.literal(n + " point(s) « " + prefix + "… » passé(s) en " + t.label() + ".").withStyle(n > 0 ? ChatFormatting.GREEN : ChatFormatting.YELLOW));
+        return n;
     }
 
     private static int types(CommandContext<CommandSourceStack> c) {

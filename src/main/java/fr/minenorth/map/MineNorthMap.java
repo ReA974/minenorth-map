@@ -22,7 +22,9 @@ public class MineNorthMap {
 
     public MineNorthMap() {
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
-        ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ServerMapConfig.SPEC);
+        // COMMON (dossier config/) et non SERVER (<monde>/serverconfig/) : le fichier du monde était remis à zéro à chaque redémarrage
+        // sur certains serveurs (hybrides Forge/Fabric, monde restauré...). Même nom, mêmes sections : on peut copier l'ancien fichier.
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ServerMapConfig.SPEC, "minenorth_map-server.toml");
         NetworkHandler.register();
     }
 }

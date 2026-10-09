@@ -2,7 +2,7 @@ package fr.minenorth.map.server;
 
 import net.minecraftforge.common.ForgeConfigSpec;
 
-/** <monde>/serverconfig/minenorth_map-server.toml */
+/** config/minenorth_map-server.toml (ancien emplacement : <monde>/serverconfig/minenorth_map-server.toml) */
 public final class ServerMapConfig {
     public static final ForgeConfigSpec SPEC;
     public static final ForgeConfigSpec.BooleanValue AUTO_MAP_LOADED;
