@@ -2,6 +2,7 @@ package fr.minenorth.map.network;
 
 import fr.minenorth.map.client.ClientWaypoints;
 import fr.minenorth.map.waypoint.Waypoint;
+import fr.minenorth.map.waypoint.WaypointType;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkEvent;
 
@@ -9,29 +10,36 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-/** Serveur -> client : liste complète des points de repère (toutes dimensions). */
+/** Serveur -> client : types de points + liste complète des points de repère (toutes dimensions). */
 public class SyncWaypointsPacket {
+    private final List<WaypointType> types;
     private final List<Waypoint> waypoints;
 
-    public SyncWaypointsPacket(List<Waypoint> waypoints) {
+    public SyncWaypointsPacket(List<WaypointType> types, List<Waypoint> waypoints) {
+        this.types = types;
         this.waypoints = waypoints;
     }
 
     public static void encode(SyncWaypointsPacket pkt, FriendlyByteBuf buf) {
+        buf.writeVarInt(pkt.types.size());
+        for (WaypointType t : pkt.types) t.write(buf);
         buf.writeVarInt(pkt.waypoints.size());
         for (Waypoint w : pkt.waypoints) w.write(buf);
     }
 
     public static SyncWaypointsPacket decode(FriendlyByteBuf buf) {
+        int nt = buf.readVarInt();
+        List<WaypointType> types = new ArrayList<>(nt);
+        for (int i = 0; i < nt; i++) types.add(WaypointType.read(buf));
         int n = buf.readVarInt();
         List<Waypoint> list = new ArrayList<>(n);
         for (int i = 0; i < n; i++) list.add(Waypoint.read(buf));
-        return new SyncWaypointsPacket(list);
+        return new SyncWaypointsPacket(types, list);
     }
 
     public static void handle(SyncWaypointsPacket pkt, Supplier<NetworkEvent.Context> ctx) {
         // ClientWaypoints ne référence aucune classe client-only : chargement sûr côté serveur.
-        ctx.get().enqueueWork(() -> ClientWaypoints.set(pkt.waypoints));
+        ctx.get().enqueueWork(() -> ClientWaypoints.set(pkt.types, pkt.waypoints));
         ctx.get().setPacketHandled(true);
     }
 }

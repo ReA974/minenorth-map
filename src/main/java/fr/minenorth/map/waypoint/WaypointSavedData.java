@@ -1,5 +1,7 @@
 package fr.minenorth.map.waypoint;
 
+import fr.minenorth.map.server.CompanyBridge;
+import fr.minenorth.map.server.WaypointTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -78,4 +80,21 @@ public class WaypointSavedData extends SavedData {
     public Collection<Waypoint> all() { return waypoints.values(); }
 
     public List<Waypoint> snapshot() { return new ArrayList<>(waypoints.values()); }
+
+    /** Copie envoyée aux clients : couleur déduite du type, état ouvert / fermé des entreprises liées. */
+    public List<Waypoint> forClients(MinecraftServer server) {
+        List<Waypoint> out = new ArrayList<>(waypoints.size());
+        for (Waypoint w : waypoints.values()) {
+            WaypointType t = WaypointTypes.get(w.type());
+            if (t == null) t = WaypointTypes.fallback();
+            int color = t != null ? t.color() : w.color();
+            String type = t != null ? t.id() : w.type();
+            int status = Waypoint.STATUS_NONE;
+            if (w.company() != Waypoint.NO_COMPANY && CompanyBridge.available()) {
+                status = CompanyBridge.isOpen(server, w.company()) ? Waypoint.STATUS_OPEN : Waypoint.STATUS_CLOSED;
+            }
+            out.add(w.withType(type).resolved(color, status));
+        }
+        return out;
+    }
 }

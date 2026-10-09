@@ -38,6 +38,7 @@ public final class ServerEvents {
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer sp) {
             NetworkHandler.syncTo(sp);
+            fr.minenorth.map.server.WaypointEditor.sendInfo(sp);
             PlayerTracker.onLogin(sp);
         }
     }
@@ -59,7 +60,25 @@ public final class ServerEvents {
 
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) ServerMapManager.tick();
+        if (event.phase != TickEvent.Phase.END) return;
+        ServerMapManager.tick();
+        statusTick(event.getServer() != null ? event.getServer() : null);
+    }
+
+    private static int statusCountdown;
+    private static int lastStatuses = Integer.MIN_VALUE;
+
+    /** Toutes les 5 s : si l'état ouvert / fermé d'une entreprise liée a changé, les points sont renvoyés à tout le monde. */
+    private static void statusTick(net.minecraft.server.MinecraftServer server) {
+        if (server == null || ++statusCountdown < 100) return;
+        statusCountdown = 0;
+        if (!fr.minenorth.map.server.CompanyBridge.available()) return;
+        int h = 1;
+        for (fr.minenorth.map.waypoint.Waypoint w : fr.minenorth.map.waypoint.WaypointSavedData.get(server).forClients(server)) h = 31 * h + w.status();
+        if (h != lastStatuses) {
+            lastStatuses = h;
+            NetworkHandler.syncAll(server);
+        }
     }
 
     @SubscribeEvent

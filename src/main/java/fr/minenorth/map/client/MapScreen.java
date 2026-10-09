@@ -4,6 +4,7 @@ import fr.minenorth.map.network.NetworkHandler;
 import fr.minenorth.map.network.PlayerPositionsPacket;
 import fr.minenorth.map.network.TogglePlayersPacket;
 import fr.minenorth.map.waypoint.Waypoint;
+import fr.minenorth.map.waypoint.WaypointType;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -31,6 +32,12 @@ public class MapScreen extends Screen {
     private static boolean wantPlayers;
     private Button playersBtn;
     private Button pointsBtn;
+    private Button filterBtn;
+    private Button editBtn;
+    /** Mode édition (OP) : clic sur un point = le modifier, clic droit = nouveau point. */
+    private static boolean editMode;
+    private boolean showFilters;
+    private static final int FILTER_ROW_H = 12, FILTER_W = 150;
 
     private double centerX, centerZ;
     private float zoom = lastZoom;
@@ -56,6 +63,18 @@ public class MapScreen extends Screen {
             updatePointsButton();
         }).bounds(width - 116, 17, 110, 16).build());
         updatePointsButton();
+        filterBtn = addRenderableWidget(Button.builder(Component.literal("Filtres ▾"), b -> {
+            showFilters = !showFilters;
+            updateFilterButton();
+        }).bounds(width - 116, 53, 110, 16).build());
+        updateFilterButton();
+        editBtn = addRenderableWidget(Button.builder(Component.empty(), b -> {
+            editMode = !editMode;
+            updateEditButton();
+        }).bounds(width - 116, 71, 110, 16).build());
+        updateEditButton();
+        NetworkHandler.CHANNEL.sendToServer(new fr.minenorth.map.network.WaypointEditPacket(
+                fr.minenorth.map.network.WaypointEditPacket.REFRESH, "", "", "", -1, "", 0, 0, 0));
         playersBtn = addRenderableWidget(Button.builder(Component.literal(""), b -> setPlayers(!ClientPlayersView.enabled()))
                 .bounds(width - 116, 35, 110, 16).build());
         if (ClientPlayersView.allowed() && wantPlayers && !ClientPlayersView.enabled()) setPlayers(true);
@@ -73,6 +92,83 @@ public class MapScreen extends Screen {
     private void updatePointsButton() {
         if (pointsBtn == null) return;
         pointsBtn.setMessage(Component.literal(ClientConfig.HIDE_WAYPOINTS.get() ? "Points : cachés" : "Points : affichés"));
+    }
+
+    private void updateEditButton() {
+        if (editBtn == null) return;
+        editBtn.visible = ClientEditor.canEdit();
+        if (!ClientEditor.canEdit()) editMode = false;
+        editBtn.setMessage(Component.literal(editMode ? "§6Édition : ON" : "Édition : OFF"));
+    }
+
+    private boolean editing() { return editMode && ClientEditor.canEdit(); }
+
+    private void openEditor(Waypoint w, double mx, double my) {
+        Minecraft mc = Minecraft.getInstance();
+        if (w != null) {
+            mc.setScreen(new WaypointEditScreen(this, w));
+        } else if (mc.player != null) {
+            mc.setScreen(new WaypointEditScreen(this, dim(), Mth.floor(toWorldX(mx)), mc.player.getBlockY(), Mth.floor(toWorldZ(my))));
+        }
+    }
+
+    private void updateFilterButton() {
+        if (filterBtn == null) return;
+        int hidden = 0;
+        for (WaypointType t : ClientWaypoints.types()) if (ClientWaypoints.isTypeHidden(t.id())) hidden++;
+        boolean active = hidden > 0 || ClientConfig.ONLY_OPEN.get();
+        filterBtn.setMessage(Component.literal((active ? "§eFiltres" : "Filtres") + (showFilters ? " ▴" : " ▾")));
+    }
+
+    /** Lignes du panneau de filtres : un type par ligne, puis « seulement ouvertes », puis Tout / Aucun. */
+    private int filterRows() { return ClientWaypoints.types().size() + 2; }
+
+    private int filterX() { return width - FILTER_W - 6; }
+    private int filterY() { return 90; }
+    private int filterH() { return filterRows() * FILTER_ROW_H + 6; }
+
+    private boolean inFilterPanel(double mx, double my) {
+        return showFilters && mx >= filterX() && mx <= filterX() + FILTER_W && my >= filterY() && my <= filterY() + filterH();
+    }
+
+    private void drawFilterPanel(GuiGraphics g, int mouseX, int mouseY) {
+        int x = filterX(), y = filterY();
+        g.fill(x - 1, y - 1, x + FILTER_W + 1, y + filterH() + 1, 0xFF8B7355);
+        g.fill(x, y, x + FILTER_W, y + filterH(), 0xF0141418);
+        int ry = y + 3;
+        for (WaypointType t : ClientWaypoints.types()) {
+            boolean on = !ClientWaypoints.isTypeHidden(t.id());
+            if (mouseX >= x && mouseX < x + FILTER_W && mouseY >= ry && mouseY < ry + FILTER_ROW_H) g.fill(x + 1, ry, x + FILTER_W - 1, ry + FILTER_ROW_H, 0x40FFFFFF);
+            g.fill(x + 5, ry + 2, x + 13, ry + 10, 0xFF000000);
+            if (on) g.fill(x + 6, ry + 3, x + 12, ry + 9, 0xFF000000 | t.color());
+            g.drawString(font, t.label(), x + 19, ry + 2, on ? 0xFFFFFFFF : 0xFF777777, false);
+            ry += FILTER_ROW_H;
+        }
+        boolean only = ClientConfig.ONLY_OPEN.get();
+        if (mouseX >= x && mouseX < x + FILTER_W && mouseY >= ry && mouseY < ry + FILTER_ROW_H) g.fill(x + 1, ry, x + FILTER_W - 1, ry + FILTER_ROW_H, 0x40FFFFFF);
+        g.fill(x + 5, ry + 2, x + 13, ry + 10, 0xFF000000);
+        if (only) g.fill(x + 6, ry + 3, x + 12, ry + 9, 0xFF43D854);
+        g.drawString(font, "Seulement ouvertes", x + 19, ry + 2, only ? 0xFFFFFFFF : 0xFFAAAAAA, false);
+        ry += FILTER_ROW_H;
+        g.drawString(font, "§nTout§r  §7|§r  §nAucun", x + 19, ry + 2, 0xFFAAAAAA, false);
+    }
+
+    /** Clic dans le panneau de filtres ; renvoie true si le clic y a été traité. */
+    private boolean clickFilterPanel(double mx, double my) {
+        if (!inFilterPanel(mx, my)) return false;
+        int row = (int) ((my - filterY() - 3) / FILTER_ROW_H);
+        List<WaypointType> types = ClientWaypoints.types();
+        if (row >= 0 && row < types.size()) {
+            String id = types.get(row).id();
+            ClientWaypoints.setTypeHidden(id, !ClientWaypoints.isTypeHidden(id));
+        } else if (row == types.size()) {
+            ClientWaypoints.setOnlyOpen(!ClientConfig.ONLY_OPEN.get());
+        } else if (row == types.size() + 1) {
+            boolean all = mx < filterX() + 19 + font.width("Tout") + 4;
+            for (WaypointType t : types) ClientWaypoints.setTypeHidden(t.id(), !all);
+        }
+        updateFilterButton();
+        return true;
     }
 
     private void updatePlayersButton() {
@@ -113,6 +209,7 @@ public class MapScreen extends Screen {
         LocalPlayer player = mc.player;
         String dim = dim();
         list = ClientWaypoints.inDimension(dim);
+        list.removeIf(w -> !ClientWaypoints.passesFilter(w) && !ClientWaypoints.isTracked(w));
         list.sort(Comparator.comparing(w -> w.name().toLowerCase()));
         list.addAll(TempWaypoints.inDimension(dim)); // repères perso en fin de liste
         boolean hide = ClientConfig.HIDE_WAYPOINTS.get();
@@ -130,9 +227,11 @@ public class MapScreen extends Screen {
             boolean temp = TempWaypoints.isTemp(w);
             if (hide && !temp && !tracked) continue;
             MapRenderer.drawMarker(g, sx, sy, temp ? 2 : 3, w.color(), tracked);
-            int tw = font.width(w.name());
+            MapRenderer.drawStatusDot(g, sx, sy, temp ? 2 : 3, w.status());
+            String label = w.name() + (w.status() == Waypoint.STATUS_OPEN ? " §a(Ouvert)" : w.status() == Waypoint.STATUS_CLOSED ? " §c(Fermé)" : "");
+            int tw = font.width(label);
             g.fill(sx - tw / 2 - 2, sy - 17, sx + tw / 2 + 2, sy - 6, 0x90000000);
-            g.drawString(font, w.name(), sx - tw / 2, sy - 15, 0xFF000000 | w.color(), true);
+            g.drawString(font, label, sx - tw / 2, sy - 15, 0xFF000000 | w.color(), true);
             if (mouseX > PANEL_W && Math.abs(mouseX - sx) <= 5 && Math.abs(mouseY - sy) <= 5) hovered = w;
         }
 
@@ -176,7 +275,8 @@ public class MapScreen extends Screen {
         g.drawCenteredString(font, "N", Math.round(mapCX()), 3, 0xFFFF5555);
 
         // ---- aide bas
-        String help = "Glisser : déplacer • Molette : zoom • Clic sur un point : guidage • Clic droit : repère perso • Espace : recentrer";
+        String help = editing() ? "§6MODE ÉDITION§7 • Clic sur un point : le modifier • Clic droit sur la carte : nouveau point • Glisser : déplacer • Molette : zoom"
+                : "Glisser : déplacer • Molette : zoom • Clic sur un point : guidage • Clic droit : repère perso • Espace : recentrer";
         g.fill(PANEL_W, height - 13, width, height, 0x90000000);
         g.drawCenteredString(font, help, Math.round(mapCX()), height - 11, 0xFFAAAAAA);
 
@@ -205,7 +305,9 @@ public class MapScreen extends Screen {
                 dist = (int) Math.sqrt(dx * dx + dz * dz) + "m";
             }
             int dw = font.width(dist);
-            String name = font.plainSubstrByWidth(w.name(), PANEL_W - 24 - dw - 6);
+            if (w.status() != Waypoint.STATUS_NONE) g.fill(PANEL_W - 10 - dw - 8, y + 5, PANEL_W - 10 - dw - 3, y + 10,
+                    w.status() == Waypoint.STATUS_OPEN ? 0xFF43D854 : 0xFFE53935);
+            String name = font.plainSubstrByWidth(w.name(), PANEL_W - 24 - dw - (w.status() != Waypoint.STATUS_NONE ? 16 : 6));
             boolean dim2 = hide && !TempWaypoints.isTemp(w) && !tracked;
             g.drawString(font, name, 16, y + 3, dim2 ? 0xFF777777 : 0xFFFFFFFF, false);
             g.drawString(font, dist, PANEL_W - 6 - dw, y + 3, 0xFF888888, false);
@@ -213,13 +315,21 @@ public class MapScreen extends Screen {
 
         // ---- boutons puis infobulle
         updatePlayersButton();
+        updateFilterButton();
+        updateEditButton();
         super.render(g, mouseX, mouseY, pt);
+        if (showFilters) drawFilterPanel(g, mouseX, mouseY);
         if (hoveredPlayer != null) {
             g.renderTooltip(font, Component.literal(hoveredPlayer.name() + "  (" + Mth.floor(hoveredPlayer.x()) + ", "
                     + Mth.floor(hoveredPlayer.y()) + ", " + Mth.floor(hoveredPlayer.z()) + ")"), mouseX, mouseY);
-        } else if (hovered != null) {
-            Component tip = Component.literal(hovered.name() + "  (" + hovered.x() + ", " + hovered.y() + ", " + hovered.z() + ")");
-            g.renderTooltip(font, tip, mouseX, mouseY);
+        } else if (hovered != null && !inFilterPanel(mouseX, mouseY)) {
+            List<Component> tip = new java.util.ArrayList<>();
+            tip.add(Component.literal(hovered.name() + "  (" + hovered.x() + ", " + hovered.y() + ", " + hovered.z() + ")"));
+            WaypointType type = ClientWaypoints.typeOf(hovered);
+            if (type != null) tip.add(Component.literal("§7Type : §f" + type.label()));
+            if (hovered.status() == Waypoint.STATUS_OPEN) tip.add(Component.literal("§aOuvert"));
+            else if (hovered.status() == Waypoint.STATUS_CLOSED) tip.add(Component.literal("§cFermé"));
+            g.renderComponentTooltip(font, tip, mouseX, mouseY);
         }
 
     }
@@ -228,6 +338,7 @@ public class MapScreen extends Screen {
         boolean hide = ClientConfig.HIDE_WAYPOINTS.get();
         for (Waypoint w : list) {
             if (hide && !TempWaypoints.isTemp(w) && !ClientWaypoints.isTracked(w)) continue;
+            if (inFilterPanel(mx, my)) return null;
             float sx = toScreenX(w.x() + 0.5), sy = toScreenY(w.z() + 0.5);
             if (Math.abs(mx - sx) <= 5 && Math.abs(my - sy) <= 5) return w;
         }
@@ -236,6 +347,10 @@ public class MapScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        if (filterBtn != null && filterBtn.isMouseOver(mx, my)) return super.mouseClicked(mx, my, button);
+        if (editBtn != null && editBtn.visible && editBtn.isMouseOver(mx, my)) return super.mouseClicked(mx, my, button);
+        if (clickFilterPanel(mx, my)) return true;
+        if (showFilters && button == 0 && !inFilterPanel(mx, my) && mx >= PANEL_W) showFilters = false;
         if (mx < PANEL_W) {
             int idx = (int) ((my - LIST_TOP) / ENTRY_H);
             if (my >= LIST_TOP && idx >= 0 && idx < visibleEntries() && idx + listScroll < list.size()) {
@@ -260,7 +375,8 @@ public class MapScreen extends Screen {
         if (button == 0) {
             Waypoint w = waypointAt(mx, my);
             if (w != null) {
-                ClientWaypoints.toggleTrack(w);
+                if (editing() && !TempWaypoints.isTemp(w)) openEditor(w, mx, my);
+                else ClientWaypoints.toggleTrack(w);
                 return true;
             }
             dragging = true;
@@ -270,7 +386,9 @@ public class MapScreen extends Screen {
             // clic droit : poser / retirer un repère perso temporaire
             Waypoint w = waypointAt(mx, my);
             Minecraft mc = Minecraft.getInstance();
-            if (w != null && TempWaypoints.isTemp(w)) {
+            if (editing() && (w == null || !TempWaypoints.isTemp(w))) {
+                openEditor(w, mx, my);
+            } else if (w != null && TempWaypoints.isTemp(w)) {
                 TempWaypoints.remove(w);
             } else if (w == null && mc.player != null) {
                 int x = Mth.floor(toWorldX(mx)), z = Mth.floor(toWorldZ(my));

@@ -1,6 +1,7 @@
 package fr.minenorth.map.network;
 
 import fr.minenorth.map.MineNorthMap;
+import fr.minenorth.map.server.WaypointTypes;
 import fr.minenorth.map.waypoint.WaypointSavedData;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -13,7 +14,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import java.util.Optional;
 
 public final class NetworkHandler {
-    private static final String PROTOCOL = "4";
+    private static final String PROTOCOL = "6";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MineNorthMap.MODID, "main"),
             () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
@@ -40,18 +41,28 @@ public final class NetworkHandler {
         CHANNEL.registerMessage(id++, PlayerPositionsPacket.class,
                 PlayerPositionsPacket::encode, PlayerPositionsPacket::decode, PlayerPositionsPacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(id++, WaypointEditPacket.class,
+                WaypointEditPacket::encode, WaypointEditPacket::decode, WaypointEditPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(id++, EditorInfoPacket.class,
+                EditorInfoPacket::encode, EditorInfoPacket::decode, EditorInfoPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(id++, MarkerPacket.class,
                 MarkerPacket::encode, MarkerPacket::decode, MarkerPacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
+    private static SyncWaypointsPacket packet(MinecraftServer server) {
+        return new SyncWaypointsPacket(WaypointTypes.list(), WaypointSavedData.get(server).forClients(server));
+    }
+
     public static void syncTo(ServerPlayer player) {
-        SyncWaypointsPacket pkt = new SyncWaypointsPacket(WaypointSavedData.get(player.server).snapshot());
+        SyncWaypointsPacket pkt = packet(player.server);
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), pkt);
     }
 
     public static void syncAll(MinecraftServer server) {
-        SyncWaypointsPacket pkt = new SyncWaypointsPacket(WaypointSavedData.get(server).snapshot());
+        SyncWaypointsPacket pkt = packet(server);
         CHANNEL.send(PacketDistributor.ALL.noArg(), pkt);
     }
 }

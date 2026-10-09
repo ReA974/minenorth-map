@@ -92,6 +92,14 @@ public final class MapRenderer {
         g.fill(x - half, y - half, x + half + 1, y + half + 1, 0xFF000000 | rgb);
     }
 
+    /** Pastille d'état d'une entreprise liée : verte = ouverte, rouge = fermée (coin haut droit du marqueur). */
+    public static void drawStatusDot(GuiGraphics g, int x, int y, int half, int status) {
+        if (status == 0) return;
+        int cx = x + half + 2, cy = y - half - 2;
+        g.fill(cx - 3, cy - 3, cx + 3, cy + 3, 0xFF000000);
+        g.fill(cx - 2, cy - 2, cx + 2, cy + 2, status == 1 ? 0xFF43D854 : 0xFFE53935);
+    }
+
     /** Direction écran du regard du joueur (carte orientée nord en haut). */
     public static float[] facing(float yawDeg) {
         float rad = yawDeg * Mth.DEG_TO_RAD;

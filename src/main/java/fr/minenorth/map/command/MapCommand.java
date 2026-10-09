@@ -8,10 +8,13 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import fr.minenorth.map.network.NetworkHandler;
+import fr.minenorth.map.server.CompanyBridge;
 import fr.minenorth.map.server.RenderJob;
 import fr.minenorth.map.server.ServerMapManager;
+import fr.minenorth.map.server.WaypointTypes;
 import fr.minenorth.map.waypoint.Waypoint;
 import fr.minenorth.map.waypoint.WaypointSavedData;
+import fr.minenorth.map.waypoint.WaypointType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -37,41 +40,30 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * /carte point ajouter "<nom>" [couleur]           -> à ta position
- * /carte point placer "<nom>" <x> <y> <z> [couleur]
+ * /carte point ajouter "<nom>" [type]              -> à ta position
+ * /carte point placer "<nom>" <x> <y> <z> [type]
  * /carte point deplacer "<nom>"                    -> déplace à ta position
  * /carte point supprimer "<nom>"
  * /carte point renommer "<ancien>" "<nouveau>"
- * /carte point couleur "<nom>" <couleur>
+ * /carte point type "<nom>" <type>
+ * /carte point types                                 -> liste des types (config serveur)
+ * /carte point lier "<nom>" "<entreprise>"        -> affiche ouvert / fermé sur la carte
+ * /carte point delier "<nom>"
  * /carte point liste
  * /carte point tp "<nom>"
  * /carte generer rayon <blocs>                     -> dessine la carte commune autour de toi
  * /carte generer zone <x1> <z1> <x2> <z2>
  * /carte generer statut | stop
- * Les noms avec espaces doivent être entre guillemets. Couleur : nom (rouge, bleu...) ou hex RRGGBB.
+ * Les noms avec espaces doivent être entre guillemets. Les types (et leur couleur) sont définis dans la config serveur.
  */
 public final class MapCommand {
     private MapCommand() {}
 
-    public static final Map<String, Integer> COLORS = new LinkedHashMap<>();
-    static {
-        COLORS.put("rouge", 0xE53935);
-        COLORS.put("orange", 0xFB8C00);
-        COLORS.put("jaune", 0xFDD835);
-        COLORS.put("vert", 0x43A047);
-        COLORS.put("cyan", 0x00ACC1);
-        COLORS.put("bleu", 0x1E88E5);
-        COLORS.put("violet", 0x8E24AA);
-        COLORS.put("rose", 0xEC407A);
-        COLORS.put("blanc", 0xFFFFFF);
-        COLORS.put("gris", 0x9E9E9E);
-        COLORS.put("noir", 0x212121);
-        COLORS.put("marron", 0x795548);
-    }
-    private static final int DEFAULT_COLOR = 0xFDD835;
+    private static final SimpleCommandExceptionType NO_COMPANY_MOD = new SimpleCommandExceptionType(
+            Component.literal("Le mod Entreprises n'est pas installé sur ce serveur."));
+    private static final SimpleCommandExceptionType UNKNOWN_COMPANY = new SimpleCommandExceptionType(
+            Component.literal("Entreprise active introuvable (nom exact, entre guillemets si espaces)."));
 
-    private static final SimpleCommandExceptionType BAD_COLOR = new SimpleCommandExceptionType(
-            Component.literal("Couleur inconnue. Utilise : " + String.join(", ", COLORS.keySet()) + " ou un code hex RRGGBB"));
     private static final SimpleCommandExceptionType UNKNOWN = new SimpleCommandExceptionType(
             Component.literal("Ce point de repère n'existe pas."));
     private static final SimpleCommandExceptionType ALREADY = new SimpleCommandExceptionType(
@@ -84,8 +76,12 @@ public final class MapCommand {
                     WaypointSavedData.get(ctx.getSource().getServer()).all().stream()
                             .map(w -> StringArgumentType.escapeIfRequired(w.name())), b);
 
-    private static final SuggestionProvider<CommandSourceStack> COLOR_SUGGEST = (ctx, b) ->
-            SharedSuggestionProvider.suggest(COLORS.keySet(), b);
+    private static final SuggestionProvider<CommandSourceStack> TYPE_SUGGEST = (ctx, b) ->
+            SharedSuggestionProvider.suggest(WaypointTypes.all().keySet(), b);
+
+    private static final SuggestionProvider<CommandSourceStack> COMPANY_SUGGEST = (ctx, b) ->
+            SharedSuggestionProvider.suggest(CompanyBridge.companies(ctx.getSource().getServer()).stream()
+                    .map(c -> StringArgumentType.escapeIfRequired((String) c[1])), b);
 
     public static void register(CommandDispatcher<CommandSourceStack> d) {
         d.register(Commands.literal("carte")
@@ -125,15 +121,15 @@ public final class MapCommand {
                 .then(Commands.literal("point")
                         .then(Commands.literal("ajouter")
                                 .then(Commands.argument("nom", StringArgumentType.string())
-                                        .executes(c -> add(c, BlockPos.containing(c.getSource().getPosition()), DEFAULT_COLOR))
-                                        .then(Commands.argument("couleur", StringArgumentType.word()).suggests(COLOR_SUGGEST)
-                                                .executes(c -> add(c, BlockPos.containing(c.getSource().getPosition()), color(c))))))
+                                        .executes(c -> add(c, BlockPos.containing(c.getSource().getPosition()), WaypointTypes.fallback()))
+                                        .then(Commands.argument("type", StringArgumentType.word()).suggests(TYPE_SUGGEST)
+                                                .executes(c -> add(c, BlockPos.containing(c.getSource().getPosition()), type(c))))))
                         .then(Commands.literal("placer")
                                 .then(Commands.argument("nom", StringArgumentType.string())
                                         .then(Commands.argument("pos", BlockPosArgument.blockPos())
-                                                .executes(c -> add(c, BlockPosArgument.getBlockPos(c, "pos"), DEFAULT_COLOR))
-                                                .then(Commands.argument("couleur", StringArgumentType.word()).suggests(COLOR_SUGGEST)
-                                                        .executes(c -> add(c, BlockPosArgument.getBlockPos(c, "pos"), color(c)))))))
+                                                .executes(c -> add(c, BlockPosArgument.getBlockPos(c, "pos"), WaypointTypes.fallback()))
+                                                .then(Commands.argument("type", StringArgumentType.word()).suggests(TYPE_SUGGEST)
+                                                        .executes(c -> add(c, BlockPosArgument.getBlockPos(c, "pos"), type(c)))))))
                         .then(Commands.literal("deplacer")
                                 .then(Commands.argument("nom", StringArgumentType.string()).suggests(NAMES)
                                         .executes(MapCommand::move)))
@@ -144,10 +140,18 @@ public final class MapCommand {
                                 .then(Commands.argument("nom", StringArgumentType.string()).suggests(NAMES)
                                         .then(Commands.argument("nouveau", StringArgumentType.string())
                                                 .executes(MapCommand::rename))))
-                        .then(Commands.literal("couleur")
+                        .then(Commands.literal("type")
                                 .then(Commands.argument("nom", StringArgumentType.string()).suggests(NAMES)
-                                        .then(Commands.argument("couleur", StringArgumentType.word()).suggests(COLOR_SUGGEST)
-                                                .executes(MapCommand::recolor))))
+                                        .then(Commands.argument("type", StringArgumentType.word()).suggests(TYPE_SUGGEST)
+                                                .executes(MapCommand::retype))))
+                        .then(Commands.literal("types").executes(MapCommand::types))
+                        .then(Commands.literal("lier")
+                                .then(Commands.argument("nom", StringArgumentType.string()).suggests(NAMES)
+                                        .then(Commands.argument("entreprise", StringArgumentType.string()).suggests(COMPANY_SUGGEST)
+                                                .executes(MapCommand::link))))
+                        .then(Commands.literal("delier")
+                                .then(Commands.argument("nom", StringArgumentType.string()).suggests(NAMES)
+                                        .executes(MapCommand::unlink)))
                         .then(Commands.literal("liste").executes(MapCommand::list))
                         .then(Commands.literal("tp")
                                 .then(Commands.argument("nom", StringArgumentType.string()).suggests(NAMES)
@@ -169,13 +173,14 @@ public final class MapCommand {
         return 1;
     }
 
-    private static int color(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
-        String s = StringArgumentType.getString(c, "couleur").toLowerCase(Locale.ROOT);
-        Integer named = COLORS.get(s);
-        if (named != null) return named;
-        if (s.startsWith("#")) s = s.substring(1);
-        if (s.matches("[0-9a-f]{6}")) return Integer.parseInt(s, 16);
-        throw BAD_COLOR.create();
+    private static WaypointType type(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
+        String id = StringArgumentType.getString(c, "type");
+        WaypointType t = WaypointTypes.get(id);
+        if (t == null) {
+            throw new SimpleCommandExceptionType(Component.literal("Type inconnu. Types : "
+                    + String.join(", ", WaypointTypes.all().keySet()))).create();
+        }
+        return t;
     }
 
     private static String name(CommandContext<CommandSourceStack> c, String arg) throws CommandSyntaxException {
@@ -191,25 +196,30 @@ public final class MapCommand {
     }
 
     private static MutableComponent label(Waypoint w) {
-        return Component.literal(w.name()).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(w.color())).withBold(true));
+        return label(w, WaypointTypes.get(w.type()));
+    }
+
+    private static MutableComponent label(Waypoint w, WaypointType t) {
+        int color = t != null ? t.color() : w.color();
+        return Component.literal(w.name()).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(color)).withBold(true));
     }
 
     private static void changed(CommandSourceStack src) {
         NetworkHandler.syncAll(src.getServer());
     }
 
-    private static int add(CommandContext<CommandSourceStack> c, BlockPos pos, int color) throws CommandSyntaxException {
+    private static int add(CommandContext<CommandSourceStack> c, BlockPos pos, WaypointType type) throws CommandSyntaxException {
         CommandSourceStack src = c.getSource();
         String n = name(c, "nom");
         WaypointSavedData data = WaypointSavedData.get(src.getServer());
         if (data.exists(n)) throw ALREADY.create();
         String dim = src.getLevel().dimension().location().toString();
-        Waypoint w = new Waypoint(n, dim, pos.getX(), pos.getY(), pos.getZ(), color);
+        Waypoint w = new Waypoint(n, dim, pos.getX(), pos.getY(), pos.getZ(), type.color(), type.id(), Waypoint.NO_COMPANY, Waypoint.STATUS_NONE);
         data.put(w);
         changed(src);
         src.sendSystemMessage(Component.literal("Point de repère ").withStyle(ChatFormatting.GREEN)
                 .append(label(w))
-                .append(Component.literal(" ajouté en " + pos.getX() + " " + pos.getY() + " " + pos.getZ()).withStyle(ChatFormatting.GREEN)));
+                .append(Component.literal(" (" + type.label() + ") ajouté en " + pos.getX() + " " + pos.getY() + " " + pos.getZ()).withStyle(ChatFormatting.GREEN)));
         return 1;
     }
 
@@ -246,12 +256,55 @@ public final class MapCommand {
         return 1;
     }
 
-    private static int recolor(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
+    private static int retype(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
         CommandSourceStack src = c.getSource();
-        Waypoint w = existing(c).withColor(color(c));
+        WaypointType t = type(c);
+        Waypoint w = existing(c).withType(t.id());
         WaypointSavedData.get(src.getServer()).put(w);
         changed(src);
-        src.sendSystemMessage(Component.literal("Nouvelle couleur pour ").withStyle(ChatFormatting.GREEN).append(label(w)));
+        src.sendSystemMessage(Component.literal("Type de ").withStyle(ChatFormatting.GREEN).append(label(w, t))
+                .append(Component.literal(" : " + t.label()).withStyle(ChatFormatting.GREEN)));
+        return 1;
+    }
+
+    private static int types(CommandContext<CommandSourceStack> c) {
+        CommandSourceStack src = c.getSource();
+        src.sendSystemMessage(Component.literal("=== Types de points ===").withStyle(ChatFormatting.GOLD));
+        for (WaypointType t : WaypointTypes.list()) {
+            src.sendSystemMessage(Component.literal(" • ").withStyle(ChatFormatting.DARK_GRAY)
+                    .append(Component.literal(t.id()).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(t.color())).withBold(true)))
+                    .append(Component.literal("  " + t.label()).withStyle(ChatFormatting.GRAY)));
+        }
+        return WaypointTypes.all().size();
+    }
+
+    private static int link(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
+        CommandSourceStack src = c.getSource();
+        if (!CompanyBridge.available()) throw NO_COMPANY_MOD.create();
+        Waypoint w = existing(c);
+        int id = CompanyBridge.findByName(src.getServer(), StringArgumentType.getString(c, "entreprise").trim());
+        if (id < 0) throw UNKNOWN_COMPANY.create();
+        WaypointType t = WaypointTypes.get("entreprise");
+        Waypoint nw = w.withCompany(id);
+        if (t != null) nw = nw.withType(t.id());
+        WaypointSavedData.get(src.getServer()).put(nw);
+        changed(src);
+        src.sendSystemMessage(Component.literal("Point ").withStyle(ChatFormatting.GREEN).append(label(nw, t))
+                .append(Component.literal(" lié à « " + CompanyBridge.companyName(src.getServer(), id)
+                        + " » : ouvert / fermé affiché sur la carte.").withStyle(ChatFormatting.GREEN)));
+        return 1;
+    }
+
+    private static int unlink(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
+        CommandSourceStack src = c.getSource();
+        Waypoint w = existing(c);
+        if (w.company() == Waypoint.NO_COMPANY) {
+            src.sendFailure(Component.literal("Ce point n'est lié à aucune entreprise."));
+            return 0;
+        }
+        WaypointSavedData.get(src.getServer()).put(w.withCompany(Waypoint.NO_COMPANY));
+        changed(src);
+        src.sendSystemMessage(Component.literal("Point délié de son entreprise : ").withStyle(ChatFormatting.YELLOW).append(label(w)));
         return 1;
     }
 
@@ -259,7 +312,7 @@ public final class MapCommand {
         CommandSourceStack src = c.getSource();
         List<Waypoint> all = WaypointSavedData.get(src.getServer()).snapshot();
         if (all.isEmpty()) {
-            src.sendSystemMessage(Component.literal("Aucun point de repère. /carte point ajouter \"<nom>\" [couleur]").withStyle(ChatFormatting.GRAY));
+            src.sendSystemMessage(Component.literal("Aucun point de repère. /carte point ajouter \"<nom>\" [type]").withStyle(ChatFormatting.GRAY));
             return 0;
         }
         src.sendSystemMessage(Component.literal("=== Points de repère (" + all.size() + ") ===").withStyle(ChatFormatting.GOLD));
@@ -267,6 +320,8 @@ public final class MapCommand {
             String tpCmd = "/carte point tp " + StringArgumentType.escapeIfRequired(w.name());
             MutableComponent line = Component.literal(" • ").withStyle(ChatFormatting.DARK_GRAY)
                     .append(label(w))
+                    .append(Component.literal("  [" + typeLabel(w) + "]").withStyle(ChatFormatting.DARK_AQUA))
+                    .append(companyInfo(src, w))
                     .append(Component.literal("  " + w.x() + " " + w.y() + " " + w.z() + "  (" + w.dimension() + ")").withStyle(ChatFormatting.GRAY))
                     .append(Component.literal("  [TP]").withStyle(Style.EMPTY.withColor(ChatFormatting.AQUA)
                             .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, tpCmd))
@@ -274,6 +329,20 @@ public final class MapCommand {
             src.sendSystemMessage(line);
         }
         return all.size();
+    }
+
+    private static String typeLabel(Waypoint w) {
+        WaypointType t = WaypointTypes.get(w.type());
+        return t != null ? t.label() : w.type();
+    }
+
+    private static MutableComponent companyInfo(CommandSourceStack src, Waypoint w) {
+        if (w.company() == Waypoint.NO_COMPANY) return Component.empty();
+        String n = CompanyBridge.companyName(src.getServer(), w.company());
+        boolean open = CompanyBridge.isOpen(src.getServer(), w.company());
+        return Component.literal(" " + (n.isEmpty() ? "entreprise #" + w.company() : n) + " ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(Component.literal(open ? "● Ouvert" : "● Fermé").withStyle(open ? ChatFormatting.GREEN : ChatFormatting.RED));
     }
 
     private static int tp(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {

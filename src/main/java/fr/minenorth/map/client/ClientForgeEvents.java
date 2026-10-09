@@ -66,6 +66,7 @@ public final class ClientForgeEvents {
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         MapStorage.onLogout();
         ClientWaypoints.clear();
+        ClientEditor.reset();
         ClientPlayersView.reset();
         TempWaypoints.clear();
     }

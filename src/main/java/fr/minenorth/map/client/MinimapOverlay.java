@@ -48,7 +48,7 @@ public final class MinimapOverlay {
         MapRenderer.drawTerrain(g, px, pz, zoom, x0, y0, x1, y1);
         boolean hide = ClientConfig.HIDE_WAYPOINTS.get();
         java.util.List<Waypoint> shown = new java.util.ArrayList<>();
-        for (Waypoint w : ClientWaypoints.inDimension(dim)) if (!hide || ClientWaypoints.isTracked(w)) shown.add(w);
+        for (Waypoint w : ClientWaypoints.inDimension(dim)) if (ClientWaypoints.isTracked(w) || (!hide && ClientWaypoints.passesFilter(w))) shown.add(w);
         shown.addAll(TempWaypoints.inDimension(dim));
         for (Waypoint w : shown) {
             boolean tracked = ClientWaypoints.isTracked(w);
@@ -61,6 +61,7 @@ public final class MinimapOverlay {
                 wy = Mth.clamp(wy, y0 + 4, y1 - 5);
             }
             MapRenderer.drawMarker(g, Math.round(wx), Math.round(wy), 2, w.color(), tracked);
+            MapRenderer.drawStatusDot(g, Math.round(wx), Math.round(wy), 2, w.status());
         }
         g.disableScissor();
 

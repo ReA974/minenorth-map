@@ -15,6 +15,8 @@ public final class ClientConfig {
     public static final ForgeConfigSpec.BooleanValue SHOW_GUIDE;
     public static final ForgeConfigSpec.BooleanValue HIDE_WAYPOINTS;
     public static final ForgeConfigSpec.IntValue TEMP_MINUTES;
+    public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> HIDDEN_TYPES;
+    public static final ForgeConfigSpec.BooleanValue ONLY_OPEN;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -29,6 +31,10 @@ public final class ClientConfig {
         b.push("points");
         HIDE_WAYPOINTS = b.comment("Masquer les points de repère du serveur sur la carte et la minicarte (bouton sur la carte)")
                 .define("masquerPoints", false);
+        HIDDEN_TYPES = b.comment("Types de points masqués (filtre du bouton Filtres sur la carte)")
+                .defineList("typesMasques", java.util.List.of(), o -> o instanceof String);
+        ONLY_OPEN = b.comment("Masquer les entreprises fermées (filtre du bouton Filtres sur la carte)")
+                .define("seulementOuvertes", false);
         TEMP_MINUTES = b.comment("Durée de vie des repères perso temporaires, en minutes (0 = jusqu'à la déconnexion)")
                 .defineInRange("dureeReperesPerso", 60, 0, 1440);
         b.pop();

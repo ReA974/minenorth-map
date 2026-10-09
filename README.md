@@ -28,12 +28,15 @@ Les positions ne sont envoyées qu'aux personnes autorisées, uniquement pendant
 ## OP (permission niveau 2)
 Noms avec espaces => entre guillemets.
 ```
-/carte point ajouter "<nom>" [couleur]          à ta position
-/carte point placer "<nom>" <x> <y> <z> [couleur]
+/carte point ajouter "<nom>" [type]              à ta position (type par défaut : autre)
+/carte point placer "<nom>" <x> <y> <z> [type]
 /carte point deplacer "<nom>"                    déplace à ta position
 /carte point supprimer "<nom>"
 /carte point renommer "<ancien>" "<nouveau>"
-/carte point couleur "<nom>" <couleur>
+/carte point type "<nom>" <type>
+/carte point types                               liste des types
+/carte point lier "<nom>" "<entreprise>"         affiche Ouvert / Fermé sur la carte
+/carte point delier "<nom>"
 /carte point liste                               (avec [TP] cliquable)
 /carte point tp "<nom>"
 ```
@@ -46,7 +49,19 @@ Dessiner toute la map d'un coup (seuls les chunks déjà générés, aucun nouve
 ```
 Carte serveur stockée dans `<monde>/minenorth_map/`. Réglages : `<monde>/serverconfig/minenorth_map-server.toml`.
 
-Couleurs : rouge, orange, jaune, vert, cyan, bleu, violet, rose, blanc, gris, noir, marron, ou hex `FF8800`.
+Types de points : `entreprise, administration, police, secours, sante, commerce, transport, loisir, logement, autre`.
+Chaque type a une couleur fixe ; la liste se modifie dans `<monde>/serverconfig/minenorth_map-server.toml` (`types = ["id;Libellé;RRGGBB"]`).
+Les points existants (anciennement par couleur) passent en type `autre` : à reclasser avec `/carte point type`.
+
+**Entreprises ouvertes / fermées** : un point lié à une entreprise (`/carte point lier`) affiche une pastille verte « Ouvert » ou rouge « Fermé ».
+Ouvert = le PDG (ou un grade « gérer ») a appuyé sur *Ouvrir l'entreprise* dans la tablette ET au moins un membre est connecté.
+Nécessite le mod Entreprises (sinon les points restent normaux).
+
+**Édition depuis la carte (OP niveau 2)** : bouton *Édition : OFF/ON* sur la grande carte (visible seulement pour les OP).
+En mode édition : clic sur un point = formulaire (nom, type, entreprise liée, *Ma position*, *Supprimer*) ; clic droit sur la carte = nouveau point à cet endroit.
+Les mêmes droits que les commandes sont revérifiés côté serveur ; les commandes `/carte point ...` restent disponibles.
+
+**Filtres** : bouton *Filtres* sur la grande carte (par type, « seulement ouvertes », Tout / Aucun) ; choix mémorisé par joueur.
 
 Points stockés dans `world/data/minenorth_map_waypoints.dat`, synchronisés en direct à tous les joueurs.
 
