@@ -63,8 +63,13 @@ public final class ServerEvents {
         if (event.phase != TickEvent.Phase.END) return;
         ServerMapManager.tick();
         statusTick(event.getServer() != null ? event.getServer() : null);
+        if (event.getServer() != null && --buildingCountdown <= 0) {
+            buildingCountdown = 600;   // toutes les 30 s : filet de sécurité (fin de location, renommage, fermeture)
+            fr.minenorth.map.server.BuildingWaypoints.reconcile(event.getServer());
+        }
     }
 
+    private static int buildingCountdown = 100;
     private static int statusCountdown;
     private static int lastStatuses = Integer.MIN_VALUE;
 

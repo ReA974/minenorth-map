@@ -63,6 +63,7 @@ public final class WaypointEditor {
                 WaypointType t = typeOrDefault(k.type());
                 int company = company(p, k.company());
                 if (company != Waypoint.NO_COMPANY && t.id().equals(Waypoint.DEFAULT_TYPE) && WaypointTypes.get("entreprise") != null) t = WaypointTypes.get("entreprise");
+                data.adopt(w.name());   // modifié à la main : il n'est plus géré automatiquement
                 if (!nn.equals(w.name())) {
                     data.rename(w.name(), nn);
                     w = data.get(nn);
@@ -74,11 +75,13 @@ public final class WaypointEditor {
             case WaypointEditPacket.MOVE: {
                 Waypoint w = data.get(name);
                 if (w == null) { say(p, "Point introuvable.", false); return; }
+                data.adopt(w.name());
                 data.put(w.withPos(k.dim(), k.x(), k.y(), k.z()));
                 say(p, "Point « " + w.name() + " » déplacé.", true);
                 break;
             }
             case WaypointEditPacket.REMOVE: {
+                data.suppressAuto(name);
                 Waypoint w = data.remove(name);
                 if (w == null) { say(p, "Point introuvable.", false); return; }
                 say(p, "Point « " + w.name() + " » supprimé.", true);

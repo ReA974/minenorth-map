@@ -19,6 +19,10 @@ import java.util.Map;
 public class WaypointSavedData extends SavedData {
     private static final String ID = "minenorth_map_waypoints";
     private final Map<String, Waypoint> waypoints = new LinkedHashMap<>();
+    /** Points posés automatiquement pour les locaux d'entreprise : clé du local (« dimension|nom du bien ») -> nom du point. */
+    private final Map<String, String> auto = new LinkedHashMap<>();
+    /** Locaux dont l'admin a supprimé le point : ils ne reviennent pas tant que le local reste à l'entreprise. */
+    private final java.util.Set<String> suppressed = new java.util.LinkedHashSet<>();
 
     public static WaypointSavedData get(MinecraftServer server) {
         return server.overworld().getDataStorage()
@@ -36,6 +40,10 @@ public class WaypointSavedData extends SavedData {
             Waypoint w = Waypoint.load(list.getCompound(i));
             d.waypoints.put(key(w.name()), w);
         }
+        ListTag au = tag.getList("auto", Tag.TAG_COMPOUND);
+        for (int i = 0; i < au.size(); i++) d.auto.put(au.getCompound(i).getString("k"), au.getCompound(i).getString("n"));
+        ListTag su = tag.getList("suppressed", Tag.TAG_STRING);
+        for (int i = 0; i < su.size(); i++) d.suppressed.add(su.getString(i));
         return d;
     }
 
@@ -44,6 +52,17 @@ public class WaypointSavedData extends SavedData {
         ListTag list = new ListTag();
         for (Waypoint w : waypoints.values()) list.add(w.save());
         tag.put("waypoints", list);
+        ListTag au = new ListTag();
+        for (Map.Entry<String, String> e : auto.entrySet()) {
+            CompoundTag c = new CompoundTag();
+            c.putString("k", e.getKey());
+            c.putString("n", e.getValue());
+            au.add(c);
+        }
+        tag.put("auto", au);
+        ListTag su = new ListTag();
+        for (String k : suppressed) su.add(net.minecraft.nbt.StringTag.valueOf(k));
+        tag.put("suppressed", su);
         return tag;
     }
 
@@ -78,6 +97,28 @@ public class WaypointSavedData extends SavedData {
     }
 
     public Collection<Waypoint> all() { return waypoints.values(); }
+
+    // ------------------------------------------------------------------ points automatiques (locaux d'entreprise)
+
+    public Map<String, String> autoMap() { return auto; }
+
+    public java.util.Set<String> suppressed() { return suppressed; }
+
+    /** Le point n'est plus géré automatiquement (l'admin l'a modifié : il devient un point comme les autres). */
+    public void adopt(String waypointName) {
+        if (auto.values().removeIf(n -> n.equalsIgnoreCase(waypointName))) setDirty();
+    }
+
+    /** L'admin supprime un point automatique : le local est noté comme refusé. */
+    public void suppressAuto(String waypointName) {
+        for (Map.Entry<String, String> e : new ArrayList<>(auto.entrySet())) {
+            if (e.getValue().equalsIgnoreCase(waypointName)) {
+                suppressed.add(e.getKey());
+                auto.remove(e.getKey());
+                setDirty();
+            }
+        }
+    }
 
     public List<Waypoint> snapshot() { return new ArrayList<>(waypoints.values()); }
 

@@ -26,6 +26,11 @@ public final class MapApi {
         send(p, new MarkerPacket(MarkerPacket.CLEAR_PREFIX, prefix, "", 0, 0, 0, 0, false));
     }
 
+    /** Appelé par le mod Portes après un achat, une location ou une revente : recalcule tout de suite les points des locaux d'entreprise. */
+    public static void refreshBuildings(net.minecraft.server.MinecraftServer server) {
+        fr.minenorth.map.server.BuildingWaypoints.reconcile(server);
+    }
+
     private static void send(ServerPlayer p, MarkerPacket pkt) {
         NetworkHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> p), pkt);
     }
