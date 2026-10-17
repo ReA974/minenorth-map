@@ -69,5 +69,6 @@ public final class ClientForgeEvents {
         ClientEditor.reset();
         ClientPlayersView.reset();
         TempWaypoints.clear();
+        MesPoints.clear();
     }
 }

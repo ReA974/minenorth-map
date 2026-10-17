@@ -71,7 +71,8 @@ public final class ClientWaypoints {
         String t = tracked;
         if (t == null) return null;
         for (Waypoint w : waypoints) if (w.name().equalsIgnoreCase(t)) return w;
-        return TempWaypoints.byName(t);
+        Waypoint temp = TempWaypoints.byName(t);
+        return temp != null ? temp : MesPoints.byName(t);
     }
 
     public static boolean isTracked(Waypoint w) {

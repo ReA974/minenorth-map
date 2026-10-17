@@ -50,6 +50,7 @@ public final class MinimapOverlay {
         java.util.List<Waypoint> shown = new java.util.ArrayList<>();
         for (Waypoint w : ClientWaypoints.inDimension(dim)) if (ClientWaypoints.isTracked(w) || (!hide && ClientWaypoints.passesFilter(w))) shown.add(w);
         shown.addAll(TempWaypoints.inDimension(dim));
+        shown.addAll(MesPoints.inDimension(dim));
         for (Waypoint w : shown) {
             boolean tracked = ClientWaypoints.isTracked(w);
             float wx = cx + (float) ((w.x() + 0.5 - px) * zoom);

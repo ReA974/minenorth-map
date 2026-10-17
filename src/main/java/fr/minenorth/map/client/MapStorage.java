@@ -89,6 +89,16 @@ public final class MapStorage {
         folder = mc.gameDirectory.toPath().resolve("minenorth_map").resolve(serverKey).resolve(sanitize(sub));
     }
 
+    /** Dossier local de ce serveur (.minecraft/minenorth_map/<serveur>), ou null avant la première image en jeu. */
+    public static Path serverFolder() {
+        Minecraft mc = Minecraft.getInstance();
+        if (serverKey == null) {
+            if (mc.level == null || mc.player == null) return null;
+            serverKey = computeServerKey(mc);
+        }
+        return mc.gameDirectory.toPath().resolve("minenorth_map").resolve(serverKey);
+    }
+
     private static String computeServerKey(Minecraft mc) {
         String name;
         if (mc.hasSingleplayerServer() && mc.getSingleplayerServer() != null) {

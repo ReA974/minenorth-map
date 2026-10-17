@@ -2,6 +2,7 @@ package fr.minenorth.map.client;
 
 import fr.minenorth.map.network.NetworkHandler;
 import fr.minenorth.map.network.PlayerPositionsPacket;
+import fr.minenorth.map.network.TeleportPacket;
 import fr.minenorth.map.network.TogglePlayersPacket;
 import fr.minenorth.map.waypoint.Waypoint;
 import fr.minenorth.map.waypoint.WaypointType;
@@ -211,7 +212,11 @@ public class MapScreen extends Screen {
         list = ClientWaypoints.inDimension(dim);
         list.removeIf(w -> !ClientWaypoints.passesFilter(w) && !ClientWaypoints.isTracked(w));
         list.sort(Comparator.comparing(w -> w.name().toLowerCase()));
-        list.addAll(TempWaypoints.inDimension(dim)); // repères perso en fin de liste
+        list.addAll(TempWaypoints.inDimension(dim)); // repères temporaires
+        List<Waypoint> mine = new java.util.ArrayList<>(MesPoints.inDimension(dim));
+        mine.sort(Comparator.comparing(w -> w.name().toLowerCase()));
+        int mineStart = list.size();
+        list.addAll(mine); // mes points perso, en fin de liste
         boolean hide = ClientConfig.HIDE_WAYPOINTS.get();
 
         // ---- zone carte
@@ -224,8 +229,9 @@ public class MapScreen extends Screen {
             int sx = Math.round(toScreenX(w.x() + 0.5)), sy = Math.round(toScreenY(w.z() + 0.5));
             if (sx < PANEL_W - 10 || sx > width + 10 || sy < -10 || sy > height + 10) continue;
             boolean tracked = ClientWaypoints.isTracked(w);
-            boolean temp = TempWaypoints.isTemp(w);
-            if (hide && !temp && !tracked) continue;
+            boolean mineP = MesPoints.isMine(w);
+            boolean temp = TempWaypoints.isTemp(w) && !mineP;
+            if (hide && !temp && !mineP && !tracked) continue;
             MapRenderer.drawMarker(g, sx, sy, temp ? 2 : 3, w.color(), tracked);
             MapRenderer.drawStatusDot(g, sx, sy, temp ? 2 : 3, w.status());
             String label = w.name() + (w.status() == Waypoint.STATUS_OPEN ? " §a(Ouvert)" : w.status() == Waypoint.STATUS_CLOSED ? " §c(Fermé)" : "");
@@ -276,7 +282,8 @@ public class MapScreen extends Screen {
 
         // ---- aide bas
         String help = editing() ? "§6MODE ÉDITION§7 • Clic sur un point : le modifier • Clic droit sur la carte : nouveau point • Glisser : déplacer • Molette : zoom"
-                : "Glisser : déplacer • Molette : zoom • Clic sur un point : guidage • Clic droit : repère perso • Espace : recentrer";
+                : "Clic : guidage • Clic droit : point perso (créer / gérer) • Ctrl + clic droit : repère temporaire"
+                + (ClientEditor.canEdit() ? " • Maj + clic droit : TP" : "");
         g.fill(PANEL_W, height - 13, width, height, 0x90000000);
         g.drawCenteredString(font, help, Math.round(mapCX()), height - 11, 0xFFAAAAAA);
 
@@ -299,6 +306,8 @@ public class MapScreen extends Screen {
             if (tracked) g.fill(2, y, PANEL_W - 3, y + ENTRY_H, 0x60FFD27A);
             else if (hov) g.fill(2, y, PANEL_W - 3, y + ENTRY_H, 0x40FFFFFF);
             g.fill(6, y + 4, 12, y + 10, 0xFF000000 | w.color());
+            boolean isMine = i + listScroll >= mineStart;
+            if (isMine && i + listScroll == mineStart && i > 0) g.fill(4, y, PANEL_W - 5, y + 1, 0xFF8B7355);
             String dist = "";
             if (player != null) {
                 double dx = w.x() + 0.5 - player.getX(), dz = w.z() + 0.5 - player.getZ();
@@ -308,8 +317,8 @@ public class MapScreen extends Screen {
             if (w.status() != Waypoint.STATUS_NONE) g.fill(PANEL_W - 10 - dw - 8, y + 5, PANEL_W - 10 - dw - 3, y + 10,
                     w.status() == Waypoint.STATUS_OPEN ? 0xFF43D854 : 0xFFE53935);
             String name = font.plainSubstrByWidth(w.name(), PANEL_W - 24 - dw - (w.status() != Waypoint.STATUS_NONE ? 16 : 6));
-            boolean dim2 = hide && !TempWaypoints.isTemp(w) && !tracked;
-            g.drawString(font, name, 16, y + 3, dim2 ? 0xFF777777 : 0xFFFFFFFF, false);
+            boolean dim2 = hide && !TempWaypoints.isTemp(w) && !isMine && !tracked;
+            g.drawString(font, (isMine ? "§6★ §r" : "") + name, 16, y + 3, dim2 ? 0xFF777777 : 0xFFFFFFFF, false);
             g.drawString(font, dist, PANEL_W - 6 - dw, y + 3, 0xFF888888, false);
         }
 
@@ -334,10 +343,20 @@ public class MapScreen extends Screen {
 
     }
 
+    /** Admin : TP au point (le serveur revérifie le droit). */
+    private void teleportTo(Waypoint w) {
+        teleportTo(w.dimension(), w.x(), w.y(), w.z(), true);
+    }
+
+    private void teleportTo(String dim, int x, int y, int z, boolean hasY) {
+        NetworkHandler.CHANNEL.sendToServer(new TeleportPacket(dim, x, y, z, hasY));
+        onClose();
+    }
+
     private Waypoint waypointAt(double mx, double my) {
         boolean hide = ClientConfig.HIDE_WAYPOINTS.get();
         for (Waypoint w : list) {
-            if (hide && !TempWaypoints.isTemp(w) && !ClientWaypoints.isTracked(w)) continue;
+            if (hide && !TempWaypoints.isTemp(w) && !MesPoints.isMine(w) && !ClientWaypoints.isTracked(w)) continue;
             if (inFilterPanel(mx, my)) return null;
             float sx = toScreenX(w.x() + 0.5), sy = toScreenY(w.z() + 0.5);
             if (Math.abs(mx - sx) <= 5 && Math.abs(my - sy) <= 5) return w;
@@ -355,6 +374,14 @@ public class MapScreen extends Screen {
             int idx = (int) ((my - LIST_TOP) / ENTRY_H);
             if (my >= LIST_TOP && idx >= 0 && idx < visibleEntries() && idx + listScroll < list.size()) {
                 Waypoint w = list.get(idx + listScroll);
+                if (button == 1 && hasShiftDown() && ClientEditor.canEdit()) {
+                    teleportTo(w);
+                    return true;
+                }
+                if (button == 1 && MesPoints.isMine(w)) {
+                    Minecraft.getInstance().setScreen(new PointEditScreen(this, w));
+                    return true;
+                }
                 if (button == 1 && TempWaypoints.isTemp(w)) {
                     TempWaypoints.remove(w);
                     return true;
@@ -375,7 +402,7 @@ public class MapScreen extends Screen {
         if (button == 0) {
             Waypoint w = waypointAt(mx, my);
             if (w != null) {
-                if (editing() && !TempWaypoints.isTemp(w)) openEditor(w, mx, my);
+                if (editing() && !TempWaypoints.isTemp(w) && !MesPoints.isMine(w)) openEditor(w, mx, my);
                 else ClientWaypoints.toggleTrack(w);
                 return true;
             }
@@ -383,19 +410,36 @@ public class MapScreen extends Screen {
             return true;
         }
         if (button == 1) {
-            // clic droit : poser / retirer un repère perso temporaire
             Waypoint w = waypointAt(mx, my);
             Minecraft mc = Minecraft.getInstance();
+            if (hasShiftDown() && ClientEditor.canEdit()) {
+                // Maj + clic droit (admin) : téléportation à l'endroit cliqué ou au point ; rien n'est posé
+                if (w != null) teleportTo(w);
+                else teleportTo(dim(), Mth.floor(toWorldX(mx)), 0, Mth.floor(toWorldZ(my)), false);
+                return true;
+            }
+            if (w != null && MesPoints.isMine(w)) {
+                mc.setScreen(new PointEditScreen(this, w));   // gérer mon point : renommer, couleur, déplacer, supprimer
+                return true;
+            }
             if (editing() && (w == null || !TempWaypoints.isTemp(w))) {
                 openEditor(w, mx, my);
             } else if (w != null && TempWaypoints.isTemp(w)) {
                 TempWaypoints.remove(w);
             } else if (w == null && mc.player != null) {
                 int x = Mth.floor(toWorldX(mx)), z = Mth.floor(toWorldZ(my));
-                Waypoint nw = TempWaypoints.add(dim(), x, mc.player.getBlockY(), z);
-                ClientWaypoints.track(nw);
-                mc.player.displayClientMessage(Component.literal("Repère perso posé en " + x + ", " + z
-                        + " (clic droit dessus pour le retirer)").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE), true);
+                if (hasControlDown()) {
+                    // Ctrl + clic droit : repère temporaire rapide (comme avant)
+                    Waypoint nw = TempWaypoints.add(dim(), x, mc.player.getBlockY(), z);
+                    ClientWaypoints.track(nw);
+                    mc.player.displayClientMessage(Component.literal("Repère temporaire posé en " + x + ", " + z
+                            + " (clic droit dessus pour le retirer)").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE), true);
+                } else if (MesPoints.count() >= MesPoints.max()) {
+                    mc.player.displayClientMessage(Component.literal("Limite de " + MesPoints.max() + " points perso atteinte : supprime-en un (clic droit dessus).")
+                            .withStyle(net.minecraft.ChatFormatting.RED), true);
+                } else {
+                    mc.setScreen(new PointEditScreen(this, dim(), x, mc.player.getBlockY(), z));
+                }
             }
             return true;
         }

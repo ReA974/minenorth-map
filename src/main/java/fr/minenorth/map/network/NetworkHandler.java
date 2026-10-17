@@ -14,7 +14,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import java.util.Optional;
 
 public final class NetworkHandler {
-    private static final String PROTOCOL = "6";
+    private static final String PROTOCOL = "7";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MineNorthMap.MODID, "main"),
             () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
@@ -47,6 +47,9 @@ public final class NetworkHandler {
         CHANNEL.registerMessage(id++, EditorInfoPacket.class,
                 EditorInfoPacket::encode, EditorInfoPacket::decode, EditorInfoPacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(id++, TeleportPacket.class,
+                TeleportPacket::encode, TeleportPacket::decode, TeleportPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(id++, MarkerPacket.class,
                 MarkerPacket::encode, MarkerPacket::decode, MarkerPacket::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));

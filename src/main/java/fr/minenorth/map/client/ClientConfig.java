@@ -17,6 +17,7 @@ public final class ClientConfig {
     public static final ForgeConfigSpec.IntValue TEMP_MINUTES;
     public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> HIDDEN_TYPES;
     public static final ForgeConfigSpec.BooleanValue ONLY_OPEN;
+    public static final ForgeConfigSpec.IntValue MAX_PERSO;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -37,6 +38,8 @@ public final class ClientConfig {
                 .define("seulementOuvertes", false);
         TEMP_MINUTES = b.comment("Durée de vie des repères perso temporaires, en minutes (0 = jusqu'à la déconnexion)")
                 .defineInRange("dureeReperesPerso", 60, 0, 1440);
+        MAX_PERSO = b.comment("Nombre maximum de points perso (créés par le joueur sur la carte, sans expiration)")
+                .defineInRange("maxPointsPerso", 50, 1, 500);
         b.pop();
         SPEC = b.build();
     }
