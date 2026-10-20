@@ -14,7 +14,7 @@ import net.minecraft.network.chat.Component;
  * Tout reste sur l'ordinateur du joueur (voir {@link MesPoints}).
  */
 public class PointEditScreen extends Screen {
-    private static final int W = 260, H = 164;
+    private static final int W = 260;
 
     private final Screen parent;
     /** Point géré, ou null pour un nouveau point. */
@@ -24,6 +24,8 @@ public class PointEditScreen extends Screen {
 
     private EditBox nameBox;
     private Button deleteBtn;
+    private IconPicker picker;
+    private String icon = "";
     private int color;
     private boolean confirmDelete;
     /** Nom en cours de saisie, conservé quand l'écran est reconstruit (choix d'une couleur). */
@@ -52,11 +54,16 @@ public class PointEditScreen extends Screen {
         this.py = w.y();
         this.pz = w.z();
         this.color = w.color();
+        this.icon = w.icon();
     }
+
+    private int h() { return editing == null ? 176 : 206; }
+    private int pickerY() { return editing == null ? 94 : 142; }
 
     @Override
     protected void init() {
-        int x = (width - W) / 2, y = (height - H) / 2;
+        int x = (width - W) / 2, y = (height - h()) / 2;
+        picker = new IconPicker(x + 10, y + pickerY(), 12, picker != null ? picker.selected() : icon, "Aucune (carré de la couleur choisie)");
         nameBox = new EditBox(font, x + 10, y + 28, W - 20, 16, Component.literal("Nom"));
         nameBox.setMaxLength(MesPoints.MAX_NAME);
         nameBox.setValue(draft != null ? draft : editing != null ? editing.name() : MesPoints.defaultName());
@@ -77,9 +84,9 @@ public class PointEditScreen extends Screen {
 
         if (editing == null) {
             addRenderableWidget(Button.builder(Component.literal("§aCréer le point"), b -> create())
-                    .bounds(x + 10, y + H - 28, 120, 18).build());
+                    .bounds(x + 10, y + h() - 26, 120, 18).build());
             addRenderableWidget(Button.builder(Component.literal("Annuler"), b -> onClose())
-                    .bounds(x + 134, y + H - 28, 116, 18).build());
+                    .bounds(x + 134, y + h() - 26, 116, 18).build());
         } else {
             addRenderableWidget(Button.builder(Component.literal("§aEnregistrer"), b -> save())
                     .bounds(x + 10, y + 90, 117, 18).build());
@@ -96,9 +103,9 @@ public class PointEditScreen extends Screen {
                 }
                 MesPoints.remove(editing.name());
                 onClose();
-            }).bounds(x + 10, y + H - 28, 160, 18).build());
+            }).bounds(x + 10, y + h() - 26, 160, 18).build());
             addRenderableWidget(Button.builder(Component.literal("Fermer"), b -> onClose())
-                    .bounds(x + 174, y + H - 28, 76, 18).build());
+                    .bounds(x + 174, y + h() - 26, 76, 18).build());
         }
     }
 
@@ -107,7 +114,7 @@ public class PointEditScreen extends Screen {
     }
 
     private void create() {
-        String err = MesPoints.add(nameBox.getValue(), dim, px, py, pz, color);
+        String err = MesPoints.add(nameBox.getValue(), dim, px, py, pz, color, picker.selected());
         if (err != null) {
             error = err;
             return;
@@ -121,7 +128,7 @@ public class PointEditScreen extends Screen {
     }
 
     private void save() {
-        String err = MesPoints.update(editing.name(), nameBox.getValue(), color);
+        String err = MesPoints.update(editing.name(), nameBox.getValue(), color, picker.selected());
         if (err != null) {
             error = err;
             return;
@@ -163,17 +170,27 @@ public class PointEditScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mx, int my, float pt) {
         renderBackground(g);
-        int x = (width - W) / 2, y = (height - H) / 2;
-        g.fill(x - 1, y - 1, x + W + 1, y + H + 1, 0xFF8B7355);
-        g.fill(x, y, x + W, y + H, 0xF0141418);
+        int x = (width - W) / 2, y = (height - h()) / 2;
+        g.fill(x - 1, y - 1, x + W + 1, y + h() + 1, 0xFF8B7355);
+        g.fill(x, y, x + W, y + h(), 0xF0141418);
         g.drawCenteredString(font, title, width / 2, y + 8, 0xFFFFD27A);
         g.drawString(font, "Nom", x + 10, y + 18, 0xFF888888, false);
         g.drawString(font, "Couleur", x + 10, y + 52, 0xFF888888, false);
         String pos = "X " + px + "  Y " + py + "  Z " + pz;
         g.drawString(font, pos, x + W - 10 - font.width(pos), y + 8, 0xFF777777, false);
+        g.drawString(font, "Icône", x + 10, y + pickerY() - 10, 0xFF888888, false);
+        picker.render(g, font, mx, my);
         String info = MesPoints.count() + " / " + MesPoints.max() + " points";
         g.drawString(font, info, x + W - 10 - font.width(info), y + 52, 0xFF666666, false);
-        if (!error.isEmpty()) g.drawCenteredString(font, error, width / 2, y + (editing == null ? H - 44 : H - 44), 0xFFFF5555);
+        if (!error.isEmpty()) g.drawCenteredString(font, error, width / 2, y + (h() - 38), 0xFFFF5555);
         super.render(g, mx, my, pt);
+        String tip = picker.hoverLabel(mx, my);
+        if (tip != null) g.renderTooltip(font, Component.literal(tip), mx, my);
+    }
+
+    @Override
+    public boolean mouseClicked(double mx, double my, int button) {
+        if (button == 0 && picker.click(mx, my)) return true;
+        return super.mouseClicked(mx, my, button);
     }
 }

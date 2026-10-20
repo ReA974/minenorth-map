@@ -65,11 +65,21 @@ Les mêmes droits que les commandes sont revérifiés côté serveur ; les comma
 
 Points stockés dans `world/data/minenorth_map_waypoints.dat`, synchronisés en direct à tous les joueurs.
 
+## Icônes de catégorie (comme sur la carte d'Altis Life)
+Les points ont une **icône** (pastille ronde colorée + pictogramme) au lieu du simple carré : garage, concession, boutique, banque/ATM, police, hôpital, pompiers/secours, restaurant, bar/club, livraison, station-service, mairie, casino, salle de sport, entreprise, atelier, gang/territoire, maison, aéroport, port, transport, loisir, récolte.
+- **Choix** : dans l'écran d'édition d'un point (mode Édition de la carte pour les OP, ou clic droit pour un point perso), grille d'icônes cliquable ; la 1re case (∅) = automatique.
+- **Automatique** : sans choix explicite, l'icône vient du type du point (commerce → boutique, secours → pompiers, logement → maison…) et, pour les types entreprise / commerce / loisir, du nom (« Pizzeria Chez Marco » → restaurant). Le type « autre » et les anciens points sans type gardent leur petit carré coloré.
+- **Rendu** : taille constante au zoom (16 px sur la carte, 11 px sur la minicarte), icônes qui se chevauchent regroupées (« +n », liste dans l'info-bulle), nom affiché au survol, pour le point guidé ou à fort zoom.
+- **Filtres** : bouton « Filtres » de la carte = cases à cocher par type *et* par catégorie d'icône (config client `iconesMasquees`).
+- **Régénérer les textures** : `python tools/gen_map_icons.py` (Pillow) écrit les PNG 32x32 dans `assets/minenorth_map/textures/map_icons/`.
+- Sauvegarde rétro-compatible (champ `icon` facultatif dans le .dat et dans `mes_points.json`). Protocole réseau 8 : serveur et clients doivent avoir la même version.
+
 ## Config client
 `config/minenorth_map-client.toml` : taille/position/zoom de la minicarte, coordonnées, guidage.
 
 ## API pour les autres mods (repères poussés par le serveur)
 `fr.minenorth.map.api.MapApi` (appel par réflexion) : `setMarker(joueur, nom, dimension, x, y, z, couleur, guidage)`, `removeMarker`, `clearMarkers(préfixe)`.
+Icônes : `setMarker(joueur, nom, dimension, x, y, z, couleur, guidage, icone)` (id d'icône, vide = devinée d'après le nom : « Incendie » → pompiers, « Livraison » → livraison, « Gang: » → gang…), `setWaypointIcon(serveur, nomDuPoint, icone)` pour un point serveur existant, `iconIds()` pour la liste des ids.
 Les repères n'existent que chez le joueur visé, ne sont pas sauvegardés et s'effacent à l'arrivée si le guidage est actif. Utilisé par le mod Secours (incendies, blessés).
 
 ## Licence

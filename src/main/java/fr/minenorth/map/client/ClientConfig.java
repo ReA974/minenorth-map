@@ -16,6 +16,7 @@ public final class ClientConfig {
     public static final ForgeConfigSpec.BooleanValue HIDE_WAYPOINTS;
     public static final ForgeConfigSpec.IntValue TEMP_MINUTES;
     public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> HIDDEN_TYPES;
+    public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> HIDDEN_ICONS;
     public static final ForgeConfigSpec.BooleanValue ONLY_OPEN;
     public static final ForgeConfigSpec.IntValue MAX_PERSO;
 
@@ -34,6 +35,8 @@ public final class ClientConfig {
                 .define("masquerPoints", false);
         HIDDEN_TYPES = b.comment("Types de points masqués (filtre du bouton Filtres sur la carte)")
                 .defineList("typesMasques", java.util.List.of(), o -> o instanceof String);
+        HIDDEN_ICONS = b.comment("Catégories d'icônes masquées (cases à cocher du bouton Filtres sur la carte)")
+                .defineList("iconesMasquees", java.util.List.of(), o -> o instanceof String);
         ONLY_OPEN = b.comment("Masquer les entreprises fermées (filtre du bouton Filtres sur la carte)")
                 .define("seulementOuvertes", false);
         TEMP_MINUTES = b.comment("Durée de vie des repères perso temporaires, en minutes (0 = jusqu'à la déconnexion)")

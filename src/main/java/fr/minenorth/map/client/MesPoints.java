@@ -6,6 +6,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import fr.minenorth.map.MineNorthMap;
+import fr.minenorth.map.waypoint.MapIcons;
 import fr.minenorth.map.waypoint.Waypoint;
 
 import java.io.IOException;
@@ -54,7 +55,8 @@ public final class MesPoints {
                 String name = clean(o.get("name").getAsString());
                 if (name.isEmpty() || exists(name)) continue;
                 points.add(new Waypoint(name, o.get("dim").getAsString(), o.get("x").getAsInt(), o.get("y").getAsInt(), o.get("z").getAsInt(),
-                        o.get("color").getAsInt() & 0xFFFFFF));
+                        o.get("color").getAsInt() & 0xFFFFFF, "", Waypoint.NO_COMPANY, Waypoint.STATUS_NONE,
+                        o.has("icon") && MapIcons.valid(o.get("icon").getAsString()) ? o.get("icon").getAsString() : ""));
             }
         } catch (IOException | RuntimeException ex) {
             MineNorthMap.LOGGER.warn("[Carte] Points perso illisibles ({}) : {}", f, ex.toString());
@@ -73,6 +75,7 @@ public final class MesPoints {
             o.addProperty("y", w.y());
             o.addProperty("z", w.z());
             o.addProperty("color", w.color());
+            if (!w.icon().isEmpty()) o.addProperty("icon", w.icon());
             arr.add(o);
         }
         try {
@@ -147,18 +150,18 @@ public final class MesPoints {
 
     // ------------------------------------------------------------------ gestion (renvoient un message d'erreur, ou null si tout va bien)
 
-    public static String add(String rawName, String dim, int x, int y, int z, int color) {
+    public static String add(String rawName, String dim, int x, int y, int z, int color, String icon) {
         ensureLoaded();
         String name = clean(rawName);
         if (name.isEmpty()) return "Donne un nom au point.";
         if (points.size() >= max()) return "Limite atteinte (" + max() + " points). Supprime-en un.";
         if (exists(name)) return "Ce nom est déjà utilisé.";
-        points.add(new Waypoint(name, dim, x, y, z, color & 0xFFFFFF));
+        points.add(new Waypoint(name, dim, x, y, z, color & 0xFFFFFF, "", Waypoint.NO_COMPANY, Waypoint.STATUS_NONE, MapIcons.valid(icon) ? icon : ""));
         save();
         return null;
     }
 
-    public static String update(String oldName, String rawName, int color) {
+    public static String update(String oldName, String rawName, int color, String icon) {
         ensureLoaded();
         int i = indexOf(oldName);
         if (i < 0) return "Point introuvable.";
@@ -167,7 +170,7 @@ public final class MesPoints {
         Waypoint w = points.get(i);
         if (!name.equalsIgnoreCase(w.name()) && exists(name)) return "Ce nom est déjà utilisé.";
         boolean wasTracked = ClientWaypoints.isTracked(w);
-        Waypoint nw = new Waypoint(name, w.dimension(), w.x(), w.y(), w.z(), color & 0xFFFFFF);
+        Waypoint nw = new Waypoint(name, w.dimension(), w.x(), w.y(), w.z(), color & 0xFFFFFF, "", Waypoint.NO_COMPANY, Waypoint.STATUS_NONE, MapIcons.valid(icon) ? icon : "");
         points.set(i, nw);
         if (wasTracked) ClientWaypoints.track(nw);
         save();
@@ -179,7 +182,7 @@ public final class MesPoints {
         int i = indexOf(name);
         if (i < 0) return "Point introuvable.";
         Waypoint w = points.get(i);
-        points.set(i, new Waypoint(w.name(), dim, x, y, z, w.color()));
+        points.set(i, w.withPos(dim, x, y, z));
         save();
         return null;
     }

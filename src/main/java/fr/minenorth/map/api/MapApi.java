@@ -17,6 +17,36 @@ public final class MapApi {
         send(p, new MarkerPacket(MarkerPacket.SET, name, dim, x, y, z, color, guide));
     }
 
+    /**
+     * Comme setMarker, avec une icône de catégorie (garage, concession, boutique, banque, police, hopital, pompier, restaurant, bar,
+     * livraison, station, mairie, casino, sport, entreprise, atelier, gang, maison, aeroport, port, transport, loisir, recolte).
+     * Icône inconnue ou vide : devinée d'après le nom du repère, sinon petit carré coloré.
+     */
+    public static void setMarker(ServerPlayer p, String name, String dim, int x, int y, int z, int color, boolean guide, String icon) {
+        send(p, new MarkerPacket(MarkerPacket.SET, name, dim, x, y, z, color, guide, icon));
+    }
+
+    /** Liste des icônes disponibles (ids séparés par des virgules), pour les autres mods. */
+    public static String iconIds() {
+        return String.join(",", fr.minenorth.map.waypoint.MapIcons.all().keySet());
+    }
+
+    /**
+     * Choisit l'icône d'un point de repère serveur existant (par son nom). icon vide = automatique (selon le type et le nom).
+     * Renvoie faux si le point n'existe pas ou si l'icône est inconnue. Sans effet sur les points posés à la main par un admin
+     * tant qu'aucun autre mod ne l'appelle.
+     */
+    public static boolean setWaypointIcon(net.minecraft.server.MinecraftServer server, String waypointName, String icon) {
+        if (icon == null) icon = "";
+        if (!icon.isEmpty() && !fr.minenorth.map.waypoint.MapIcons.valid(icon)) return false;
+        fr.minenorth.map.waypoint.WaypointSavedData d = fr.minenorth.map.waypoint.WaypointSavedData.get(server);
+        fr.minenorth.map.waypoint.Waypoint w = d.get(waypointName);
+        if (w == null) return false;
+        d.put(w.withIcon(icon));
+        NetworkHandler.syncAll(server);
+        return true;
+    }
+
     public static void removeMarker(ServerPlayer p, String name) {
         send(p, new MarkerPacket(MarkerPacket.REMOVE, name, "", 0, 0, 0, 0, false));
     }

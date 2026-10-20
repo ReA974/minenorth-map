@@ -10,6 +10,9 @@ import net.minecraftforge.client.gui.overlay.ForgeGui;
 
 /** Minicarte HUD + bandeau de guidage vers le point suivi. Aucun joueur n'est affiché. */
 public final class MinimapOverlay {
+    /** Taille écran des icônes de la minicarte : constante, quel que soit le zoom. */
+    private static final int ICON_SIZE = 11;
+
     private MinimapOverlay() {}
 
     public static void render(ForgeGui gui, GuiGraphics g, float pt, int sw, int sh) {
@@ -51,6 +54,8 @@ public final class MinimapOverlay {
         for (Waypoint w : ClientWaypoints.inDimension(dim)) if (ClientWaypoints.isTracked(w) || (!hide && ClientWaypoints.passesFilter(w))) shown.add(w);
         shown.addAll(TempWaypoints.inDimension(dim));
         shown.addAll(MesPoints.inDimension(dim));
+        java.util.List<Waypoint> iconPts = new java.util.ArrayList<>();
+        java.util.List<int[]> iconPos = new java.util.ArrayList<>();
         for (Waypoint w : shown) {
             boolean tracked = ClientWaypoints.isTracked(w);
             float wx = cx + (float) ((w.x() + 0.5 - px) * zoom);
@@ -61,8 +66,19 @@ public final class MinimapOverlay {
                 wx = Mth.clamp(wx, x0 + 4, x1 - 5);
                 wy = Mth.clamp(wy, y0 + 4, y1 - 5);
             }
+            if (!w.icon().isEmpty()) {
+                // les icônes sont dessinées après, regroupées si elles se chevauchent (le point guidé passe en premier)
+                int at = tracked ? 0 : iconPts.size();
+                iconPts.add(at, w);
+                iconPos.add(at, new int[]{Math.round(wx), Math.round(wy)});
+                continue;
+            }
             MapRenderer.drawMarker(g, Math.round(wx), Math.round(wy), 2, w.color(), tracked);
             MapRenderer.drawStatusDot(g, Math.round(wx), Math.round(wy), 2, w.status());
+        }
+        for (MapIconRenderer.Placed p : MapIconRenderer.cluster(iconPts, iconPos, ICON_SIZE - 1)) {
+            MapIconRenderer.draw(g, p.rep().icon(), p.x(), p.y(), ICON_SIZE, ClientWaypoints.isTracked(p.rep()));
+            MapRenderer.drawStatusDot(g, p.x(), p.y(), ICON_SIZE / 2 - 1, p.rep().status());
         }
         g.disableScissor();
 

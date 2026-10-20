@@ -134,7 +134,7 @@ public class WaypointSavedData extends SavedData {
             if (w.company() != Waypoint.NO_COMPANY && CompanyBridge.available()) {
                 status = CompanyBridge.isOpen(server, w.company()) ? Waypoint.STATUS_OPEN : Waypoint.STATUS_CLOSED;
             }
-            out.add(w.withType(type).resolved(color, status));
+            out.add(w.withType(type).withIcon(MapIcons.resolve(w.withType(type))).resolved(color, status));
         }
         return out;
     }

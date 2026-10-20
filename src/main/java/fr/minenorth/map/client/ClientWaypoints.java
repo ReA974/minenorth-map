@@ -55,6 +55,18 @@ public final class ClientWaypoints {
         ClientConfig.HIDDEN_TYPES.save();
     }
 
+    public static boolean isIconHidden(String id) {
+        return ClientConfig.HIDDEN_ICONS.get().contains(id);
+    }
+
+    public static void setIconHidden(String id, boolean hidden) {
+        java.util.List<String> l = new ArrayList<>(ClientConfig.HIDDEN_ICONS.get());
+        l.remove(id);
+        if (hidden) l.add(id);
+        ClientConfig.HIDDEN_ICONS.set(l);
+        ClientConfig.HIDDEN_ICONS.save();
+    }
+
     public static void setOnlyOpen(boolean v) {
         ClientConfig.ONLY_OPEN.set(v);
         ClientConfig.ONLY_OPEN.save();
@@ -64,6 +76,7 @@ public final class ClientWaypoints {
     public static boolean passesFilter(Waypoint w) {
         if (w.type().isEmpty()) return true;
         if (isTypeHidden(w.type())) return false;
+        if (!w.icon().isEmpty() && isIconHidden(w.icon())) return false;
         return !(ClientConfig.ONLY_OPEN.get() && w.status() == Waypoint.STATUS_CLOSED);
     }
 

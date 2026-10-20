@@ -10,10 +10,10 @@ import java.util.function.Supplier;
 /**
  * Client -> serveur : modification des points depuis l'interface de la carte (droit OP vérifié côté serveur).
  * name = point visé (ADD : nom du nouveau point), newName = nouveau nom (UPDATE), type = id du type,
- * company = id de l'entreprise liée (-1 = aucune), dim / x / y / z = position (ADD, MOVE).
+ * icon = catégorie d'icône ("" = automatique selon le type), company = id de l'entreprise liée (-1 = aucune), dim / x / y / z = position (ADD, MOVE).
  */
 public record WaypointEditPacket(int action, String name, String newName, String type, int company,
-                                 String dim, int x, int y, int z) {
+                                 String dim, int x, int y, int z, String icon) {
     public static final int REFRESH = 0, ADD = 1, UPDATE = 2, MOVE = 3, REMOVE = 4;
 
     public static void encode(WaypointEditPacket p, FriendlyByteBuf b) {
@@ -26,11 +26,12 @@ public record WaypointEditPacket(int action, String name, String newName, String
         b.writeInt(p.x);
         b.writeInt(p.y);
         b.writeInt(p.z);
+        b.writeUtf(p.icon, 32);
     }
 
     public static WaypointEditPacket decode(FriendlyByteBuf b) {
         return new WaypointEditPacket(b.readVarInt(), b.readUtf(64), b.readUtf(64), b.readUtf(64), b.readInt(),
-                b.readUtf(128), b.readInt(), b.readInt(), b.readInt());
+                b.readUtf(128), b.readInt(), b.readInt(), b.readInt(), b.readUtf(32));
     }
 
     public static void handle(WaypointEditPacket p, Supplier<NetworkEvent.Context> ctx) {

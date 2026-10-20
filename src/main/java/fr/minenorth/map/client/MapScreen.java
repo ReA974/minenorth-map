@@ -38,13 +38,16 @@ public class MapScreen extends Screen {
     /** Mode édition (OP) : clic sur un point = le modifier, clic droit = nouveau point. */
     private static boolean editMode;
     private boolean showFilters;
-    private static final int FILTER_ROW_H = 12, FILTER_W = 150;
+    private static final int FILTER_ROW_H = 12;
 
     private double centerX, centerZ;
     private float zoom = lastZoom;
     private boolean dragging;
     private int listScroll;
     private List<Waypoint> list = List.of();
+    /** Points réellement dessinés au dernier affichage (icônes regroupées comprises) : sert au survol et au clic. */
+    private final List<MapIconRenderer.Placed> placed = new java.util.ArrayList<>();
+    private static final int ICON_SIZE = 16;
 
     public MapScreen() {
         super(Component.translatable("screen.minenorth_map.title"));
@@ -75,7 +78,7 @@ public class MapScreen extends Screen {
         }).bounds(width - 116, 71, 110, 16).build());
         updateEditButton();
         NetworkHandler.CHANNEL.sendToServer(new fr.minenorth.map.network.WaypointEditPacket(
-                fr.minenorth.map.network.WaypointEditPacket.REFRESH, "", "", "", -1, "", 0, 0, 0));
+                fr.minenorth.map.network.WaypointEditPacket.REFRESH, "", "", "", -1, "", 0, 0, 0, ""));
         playersBtn = addRenderableWidget(Button.builder(Component.literal(""), b -> setPlayers(!ClientPlayersView.enabled()))
                 .bounds(width - 116, 35, 110, 16).build());
         if (ClientPlayersView.allowed() && wantPlayers && !ClientPlayersView.enabled()) setPlayers(true);
@@ -117,56 +120,105 @@ public class MapScreen extends Screen {
         if (filterBtn == null) return;
         int hidden = 0;
         for (WaypointType t : ClientWaypoints.types()) if (ClientWaypoints.isTypeHidden(t.id())) hidden++;
+        for (String id : fr.minenorth.map.waypoint.MapIcons.all().keySet()) if (ClientWaypoints.isIconHidden(id)) hidden++;
         boolean active = hidden > 0 || ClientConfig.ONLY_OPEN.get();
         filterBtn.setMessage(Component.literal((active ? "§eFiltres" : "Filtres") + (showFilters ? " ▴" : " ▾")));
     }
 
-    /** Lignes du panneau de filtres : un type par ligne, puis « seulement ouvertes », puis Tout / Aucun. */
-    private int filterRows() { return ClientWaypoints.types().size() + 2; }
+    /** Case du panneau de filtres. kind : TYPE / ICON (id), ONLY_OPEN, TYPES_ALL / TYPES_NONE, ICONS_ALL / ICONS_NONE, HEADER. */
+    private record Cell(int x, int y, int w, String kind, String id, String label, int color, boolean on) {}
 
-    private int filterX() { return width - FILTER_W - 6; }
-    private int filterY() { return 90; }
+    private static final int TYPE_COL_W = 150, ICON_COL_W = 112, ICON_ROWS = 12;
+
+    private int filterW() { return TYPE_COL_W + 2 * ICON_COL_W; }
+
+    private List<Cell> filterCells() {
+        List<Cell> out = new java.util.ArrayList<>();
+        int x0 = filterX(), y0 = filterY() + 3;
+        int r = 0;
+        out.add(new Cell(x0, y0, TYPE_COL_W, "HEADER", "", "§6Types", 0, true));
+        r++;
+        for (WaypointType t : ClientWaypoints.types()) {
+            out.add(new Cell(x0, y0 + r * FILTER_ROW_H, TYPE_COL_W, "TYPE", t.id(), t.label(), t.color(), !ClientWaypoints.isTypeHidden(t.id())));
+            r++;
+        }
+        out.add(new Cell(x0, y0 + r * FILTER_ROW_H, TYPE_COL_W, "ONLY_OPEN", "", "Seulement ouvertes", 0x43D854, ClientConfig.ONLY_OPEN.get()));
+        r++;
+        out.add(new Cell(x0, y0 + r * FILTER_ROW_H, TYPE_COL_W / 2, "TYPES_ALL", "", "§nTout", 0, true));
+        out.add(new Cell(x0 + TYPE_COL_W / 2, y0 + r * FILTER_ROW_H, TYPE_COL_W / 2, "TYPES_NONE", "", "§nAucun", 0, true));
+        // catégories d'icônes : deux colonnes
+        int ix = x0 + TYPE_COL_W;
+        out.add(new Cell(ix, y0, ICON_COL_W * 2, "HEADER", "", "§6Catégories d'icônes", 0, true));
+        int n = 0;
+        for (fr.minenorth.map.waypoint.MapIcons.Icon ic : fr.minenorth.map.waypoint.MapIcons.all().values()) {
+            int col = n / ICON_ROWS, row = n % ICON_ROWS;
+            out.add(new Cell(ix + col * ICON_COL_W, y0 + (row + 1) * FILTER_ROW_H, ICON_COL_W, "ICON", ic.id(), ic.label(), ic.color(), !ClientWaypoints.isIconHidden(ic.id())));
+            n++;
+        }
+        int lastRow = ICON_ROWS + 1;
+        out.add(new Cell(ix + ICON_COL_W, y0 + lastRow * FILTER_ROW_H, ICON_COL_W / 2, "ICONS_ALL", "", "§nTout", 0, true));
+        out.add(new Cell(ix + ICON_COL_W + ICON_COL_W / 2, y0 + lastRow * FILTER_ROW_H, ICON_COL_W / 2, "ICONS_NONE", "", "§nAucun", 0, true));
+        return out;
+    }
+
+    private int filterRows() {
+        return Math.max(ClientWaypoints.types().size() + 3, ICON_ROWS + 2);
+    }
+
+    private int filterX() { return Math.max(PANEL_W + 2, width - filterW() - 6); }
+    private int filterY() { return Math.max(2, Math.min(90, height - filterH() - 16)); }
     private int filterH() { return filterRows() * FILTER_ROW_H + 6; }
 
     private boolean inFilterPanel(double mx, double my) {
-        return showFilters && mx >= filterX() && mx <= filterX() + FILTER_W && my >= filterY() && my <= filterY() + filterH();
+        return showFilters && mx >= filterX() && mx <= filterX() + filterW() && my >= filterY() && my <= filterY() + filterH();
     }
 
     private void drawFilterPanel(GuiGraphics g, int mouseX, int mouseY) {
         int x = filterX(), y = filterY();
-        g.fill(x - 1, y - 1, x + FILTER_W + 1, y + filterH() + 1, 0xFF8B7355);
-        g.fill(x, y, x + FILTER_W, y + filterH(), 0xF0141418);
-        int ry = y + 3;
-        for (WaypointType t : ClientWaypoints.types()) {
-            boolean on = !ClientWaypoints.isTypeHidden(t.id());
-            if (mouseX >= x && mouseX < x + FILTER_W && mouseY >= ry && mouseY < ry + FILTER_ROW_H) g.fill(x + 1, ry, x + FILTER_W - 1, ry + FILTER_ROW_H, 0x40FFFFFF);
-            g.fill(x + 5, ry + 2, x + 13, ry + 10, 0xFF000000);
-            if (on) g.fill(x + 6, ry + 3, x + 12, ry + 9, 0xFF000000 | t.color());
-            g.drawString(font, t.label(), x + 19, ry + 2, on ? 0xFFFFFFFF : 0xFF777777, false);
-            ry += FILTER_ROW_H;
+        g.fill(x - 1, y - 1, x + filterW() + 1, y + filterH() + 1, 0xFF8B7355);
+        g.fill(x, y, x + filterW(), y + filterH(), 0xF0141418);
+        g.fill(x + TYPE_COL_W - 2, y + 4, x + TYPE_COL_W - 1, y + filterH() - 4, 0xFF3A3A44);
+        for (Cell c : filterCells()) {
+            boolean hov = mouseX >= c.x && mouseX < c.x + c.w && mouseY >= c.y && mouseY < c.y + FILTER_ROW_H;
+            if (c.kind.equals("HEADER")) {
+                g.drawString(font, c.label, c.x + 5, c.y + 2, 0xFFFFFFFF, false);
+                continue;
+            }
+            if (hov) g.fill(c.x, c.y, c.x + c.w - 1, c.y + FILTER_ROW_H, 0x40FFFFFF);
+            switch (c.kind) {
+                case "TYPE", "ONLY_OPEN" -> {
+                    g.fill(c.x + 5, c.y + 2, c.x + 13, c.y + 10, 0xFF000000);
+                    if (c.on) g.fill(c.x + 6, c.y + 3, c.x + 12, c.y + 9, 0xFF000000 | c.color);
+                    g.drawString(font, c.label, c.x + 19, c.y + 2, c.on ? 0xFFFFFFFF : c.kind.equals("TYPE") ? 0xFF777777 : 0xFFAAAAAA, false);
+                }
+                case "ICON" -> {
+                    MapIconRenderer.draw(g, c.id, c.x + 9, c.y + 6, 10, false);
+                    if (!c.on) g.fill(c.x + 4, c.y + 1, c.x + 14, c.y + 11, 0xB0141418);
+                    g.drawString(font, font.plainSubstrByWidth(c.label, c.w - 20), c.x + 16, c.y + 2, c.on ? 0xFFFFFFFF : 0xFF777777, false);
+                }
+                default -> g.drawString(font, c.label, c.x + 5, c.y + 2, 0xFFAAAAAA, false);
+            }
         }
-        boolean only = ClientConfig.ONLY_OPEN.get();
-        if (mouseX >= x && mouseX < x + FILTER_W && mouseY >= ry && mouseY < ry + FILTER_ROW_H) g.fill(x + 1, ry, x + FILTER_W - 1, ry + FILTER_ROW_H, 0x40FFFFFF);
-        g.fill(x + 5, ry + 2, x + 13, ry + 10, 0xFF000000);
-        if (only) g.fill(x + 6, ry + 3, x + 12, ry + 9, 0xFF43D854);
-        g.drawString(font, "Seulement ouvertes", x + 19, ry + 2, only ? 0xFFFFFFFF : 0xFFAAAAAA, false);
-        ry += FILTER_ROW_H;
-        g.drawString(font, "§nTout§r  §7|§r  §nAucun", x + 19, ry + 2, 0xFFAAAAAA, false);
     }
 
     /** Clic dans le panneau de filtres ; renvoie true si le clic y a été traité. */
     private boolean clickFilterPanel(double mx, double my) {
         if (!inFilterPanel(mx, my)) return false;
-        int row = (int) ((my - filterY() - 3) / FILTER_ROW_H);
-        List<WaypointType> types = ClientWaypoints.types();
-        if (row >= 0 && row < types.size()) {
-            String id = types.get(row).id();
-            ClientWaypoints.setTypeHidden(id, !ClientWaypoints.isTypeHidden(id));
-        } else if (row == types.size()) {
-            ClientWaypoints.setOnlyOpen(!ClientConfig.ONLY_OPEN.get());
-        } else if (row == types.size() + 1) {
-            boolean all = mx < filterX() + 19 + font.width("Tout") + 4;
-            for (WaypointType t : types) ClientWaypoints.setTypeHidden(t.id(), !all);
+        for (Cell c : filterCells()) {
+            if (mx < c.x || mx >= c.x + c.w || my < c.y || my >= c.y + FILTER_ROW_H) continue;
+            switch (c.kind) {
+                case "TYPE" -> ClientWaypoints.setTypeHidden(c.id, c.on);
+                case "ICON" -> ClientWaypoints.setIconHidden(c.id, c.on);
+                case "ONLY_OPEN" -> ClientWaypoints.setOnlyOpen(!c.on);
+                case "TYPES_ALL", "TYPES_NONE" -> {
+                    for (WaypointType t : ClientWaypoints.types()) ClientWaypoints.setTypeHidden(t.id(), c.kind.equals("TYPES_NONE"));
+                }
+                case "ICONS_ALL", "ICONS_NONE" -> {
+                    for (String id : fr.minenorth.map.waypoint.MapIcons.all().keySet()) ClientWaypoints.setIconHidden(id, c.kind.equals("ICONS_NONE"));
+                }
+                default -> { }
+            }
+            break;
         }
         updateFilterButton();
         return true;
@@ -225,6 +277,10 @@ public class MapScreen extends Screen {
         MapRenderer.drawTerrain(g, centerX, centerZ, zoom, PANEL_W, 0, width, height);
 
         Waypoint hovered = null;
+        MapIconRenderer.Placed hoveredCluster = null;
+        placed.clear();
+        List<Waypoint> iconPts = new java.util.ArrayList<>();
+        List<int[]> iconPos = new java.util.ArrayList<>();
         for (Waypoint w : list) {
             int sx = Math.round(toScreenX(w.x() + 0.5)), sy = Math.round(toScreenY(w.z() + 0.5));
             if (sx < PANEL_W - 10 || sx > width + 10 || sy < -10 || sy > height + 10) continue;
@@ -232,14 +288,51 @@ public class MapScreen extends Screen {
             boolean mineP = MesPoints.isMine(w);
             boolean temp = TempWaypoints.isTemp(w) && !mineP;
             if (hide && !temp && !mineP && !tracked) continue;
+            if (!w.icon().isEmpty()) {
+                // dessinées après les carrés, regroupées si elles se chevauchent (le point guidé passe en premier)
+                int at = tracked ? 0 : iconPts.size();
+                iconPts.add(at, w);
+                iconPos.add(at, new int[]{sx, sy});
+                continue;
+            }
             MapRenderer.drawMarker(g, sx, sy, temp ? 2 : 3, w.color(), tracked);
             MapRenderer.drawStatusDot(g, sx, sy, temp ? 2 : 3, w.status());
             String label = w.name() + (w.status() == Waypoint.STATUS_OPEN ? " §a(Ouvert)" : w.status() == Waypoint.STATUS_CLOSED ? " §c(Fermé)" : "");
             int tw = font.width(label);
             g.fill(sx - tw / 2 - 2, sy - 17, sx + tw / 2 + 2, sy - 6, 0x90000000);
             g.drawString(font, label, sx - tw / 2, sy - 15, 0xFF000000 | w.color(), true);
-            if (mouseX > PANEL_W && Math.abs(mouseX - sx) <= 5 && Math.abs(mouseY - sy) <= 5) hovered = w;
+            List<Waypoint> one = new java.util.ArrayList<>();
+            one.add(w);
+            MapIconRenderer.Placed pl = new MapIconRenderer.Placed(w, sx, sy, one);
+            placed.add(pl);
+            if (mouseX > PANEL_W && Math.abs(mouseX - sx) <= 5 && Math.abs(mouseY - sy) <= 5) { hovered = w; hoveredCluster = pl; }
         }
+        // icônes de catégorie : taille constante, regroupement quand elles se touchent, nom au survol
+        List<MapIconRenderer.Placed> clusters = MapIconRenderer.cluster(iconPts, iconPos, ICON_SIZE - 2);
+        MapIconRenderer.Placed hoverIcon = null;
+        for (MapIconRenderer.Placed p : clusters) {
+            if (mouseX > PANEL_W && Math.abs(mouseX - p.x()) <= ICON_SIZE / 2 + 1 && Math.abs(mouseY - p.y()) <= ICON_SIZE / 2 + 1) hoverIcon = p;
+        }
+        for (MapIconRenderer.Placed p : clusters) {
+            Waypoint w = p.rep();
+            boolean tracked = ClientWaypoints.isTracked(w);
+            MapIconRenderer.draw(g, w.icon(), p.x(), p.y(), ICON_SIZE, tracked);
+            MapRenderer.drawStatusDot(g, p.x(), p.y(), ICON_SIZE / 2 - 1, w.status());
+            if (p.count() > 1) {
+                String n = "+" + (p.count() - 1);
+                int nw = font.width(n);
+                g.fill(p.x() + ICON_SIZE / 2 - nw + 1, p.y() + ICON_SIZE / 2 - 8, p.x() + ICON_SIZE / 2 + 3, p.y() + ICON_SIZE / 2 + 1, 0xE0000000);
+                g.drawString(font, n, p.x() + ICON_SIZE / 2 - nw + 2, p.y() + ICON_SIZE / 2 - 7, 0xFFFFD27A, false);
+            }
+            // nom sous l'icône : point guidé, point survolé, ou quand on est assez près
+            if (p == hoverIcon || tracked || (zoom >= 2f && p.count() == 1)) {
+                int tw = font.width(w.name());
+                g.fill(p.x() - tw / 2 - 2, p.y() + ICON_SIZE / 2 + 1, p.x() + tw / 2 + 2, p.y() + ICON_SIZE / 2 + 12, 0xB0000000);
+                g.drawString(font, w.name(), p.x() - tw / 2, p.y() + ICON_SIZE / 2 + 3, 0xFFFFFFFF, true);
+            }
+            placed.add(p);
+        }
+        if (hoverIcon != null) { hovered = hoverIcon.rep(); hoveredCluster = hoverIcon; }
 
         // joueurs (staff uniquement, envoyé par le serveur si autorisé)
         PlayerPositionsPacket.Entry hoveredPlayer = null;
@@ -305,7 +398,8 @@ public class MapScreen extends Screen {
             boolean tracked = ClientWaypoints.isTracked(w);
             if (tracked) g.fill(2, y, PANEL_W - 3, y + ENTRY_H, 0x60FFD27A);
             else if (hov) g.fill(2, y, PANEL_W - 3, y + ENTRY_H, 0x40FFFFFF);
-            g.fill(6, y + 4, 12, y + 10, 0xFF000000 | w.color());
+            if (w.icon().isEmpty()) g.fill(6, y + 4, 12, y + 10, 0xFF000000 | w.color());
+            else MapIconRenderer.draw(g, w.icon(), 9, y + 7, 10, false);
             boolean isMine = i + listScroll >= mineStart;
             if (isMine && i + listScroll == mineStart && i > 0) g.fill(4, y, PANEL_W - 5, y + 1, 0xFF8B7355);
             String dist = "";
@@ -336,8 +430,17 @@ public class MapScreen extends Screen {
             tip.add(Component.literal(hovered.name() + "  (" + hovered.x() + ", " + hovered.y() + ", " + hovered.z() + ")"));
             WaypointType type = ClientWaypoints.typeOf(hovered);
             if (type != null) tip.add(Component.literal("§7Type : §f" + type.label()));
+            if (!hovered.icon().isEmpty()) {
+                fr.minenorth.map.waypoint.MapIcons.Icon ic = fr.minenorth.map.waypoint.MapIcons.get(hovered.icon());
+                if (ic != null) tip.add(Component.literal("§7Catégorie : §f" + ic.label()));
+            }
             if (hovered.status() == Waypoint.STATUS_OPEN) tip.add(Component.literal("§aOuvert"));
             else if (hovered.status() == Waypoint.STATUS_CLOSED) tip.add(Component.literal("§cFermé"));
+            if (hoveredCluster != null && hoveredCluster.count() > 1) {
+                tip.add(Component.literal("§eAussi ici (zoome pour séparer) :"));
+                for (int i = 1; i < hoveredCluster.members().size() && i <= 6; i++) tip.add(Component.literal("§7 • " + hoveredCluster.members().get(i).name()));
+                if (hoveredCluster.count() > 7) tip.add(Component.literal("§7 … et " + (hoveredCluster.count() - 7) + " autres"));
+            }
             g.renderComponentTooltip(font, tip, mouseX, mouseY);
         }
 
@@ -354,12 +457,11 @@ public class MapScreen extends Screen {
     }
 
     private Waypoint waypointAt(double mx, double my) {
-        boolean hide = ClientConfig.HIDE_WAYPOINTS.get();
-        for (Waypoint w : list) {
-            if (hide && !TempWaypoints.isTemp(w) && !MesPoints.isMine(w) && !ClientWaypoints.isTracked(w)) continue;
-            if (inFilterPanel(mx, my)) return null;
-            float sx = toScreenX(w.x() + 0.5), sy = toScreenY(w.z() + 0.5);
-            if (Math.abs(mx - sx) <= 5 && Math.abs(my - sy) <= 5) return w;
+        if (inFilterPanel(mx, my)) return null;
+        for (int i = placed.size() - 1; i >= 0; i--) {   // le dernier dessiné est au-dessus
+            MapIconRenderer.Placed p = placed.get(i);
+            int r = p.rep().icon().isEmpty() ? 5 : ICON_SIZE / 2 + 1;
+            if (Math.abs(mx - p.x()) <= r && Math.abs(my - p.y()) <= r) return p.rep();
         }
         return null;
     }

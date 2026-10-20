@@ -15,25 +15,32 @@ public class MarkerPacket {
     private final String name, dim;
     private final int x, y, z, color;
     private final boolean guide;
+    private final String icon;
 
     public MarkerPacket(int action, String name, String dim, int x, int y, int z, int color, boolean guide) {
+        this(action, name, dim, x, y, z, color, guide, "");
+    }
+
+    public MarkerPacket(int action, String name, String dim, int x, int y, int z, int color, boolean guide, String icon) {
+        this.icon = icon == null ? "" : icon;
         this.action = action; this.name = name; this.dim = dim; this.x = x; this.y = y; this.z = z; this.color = color; this.guide = guide;
     }
 
     public static void encode(MarkerPacket p, FriendlyByteBuf b) {
         b.writeVarInt(p.action); b.writeUtf(p.name); b.writeUtf(p.dim);
-        b.writeInt(p.x); b.writeInt(p.y); b.writeInt(p.z); b.writeInt(p.color); b.writeBoolean(p.guide);
+        b.writeInt(p.x); b.writeInt(p.y); b.writeInt(p.z); b.writeInt(p.color); b.writeBoolean(p.guide); b.writeUtf(p.icon, 32);
     }
 
     public static MarkerPacket decode(FriendlyByteBuf b) {
-        return new MarkerPacket(b.readVarInt(), b.readUtf(), b.readUtf(), b.readInt(), b.readInt(), b.readInt(), b.readInt(), b.readBoolean());
+        return new MarkerPacket(b.readVarInt(), b.readUtf(), b.readUtf(), b.readInt(), b.readInt(), b.readInt(), b.readInt(), b.readBoolean(), b.readUtf(32));
     }
 
     public static void handle(MarkerPacket p, Supplier<NetworkEvent.Context> ctx) {
         // TempWaypoints / ClientWaypoints ne référencent aucune classe client-only : chargement sûr côté serveur.
         ctx.get().enqueueWork(() -> {
             switch (p.action) {
-                case SET -> TempWaypoints.setExternal(new Waypoint(p.name, p.dim, p.x, p.y, p.z, p.color), p.guide);
+                case SET -> TempWaypoints.setExternal(new Waypoint(p.name, p.dim, p.x, p.y, p.z, p.color, "", Waypoint.NO_COMPANY, Waypoint.STATUS_NONE,
+                        fr.minenorth.map.waypoint.MapIcons.valid(p.icon) ? p.icon : fr.minenorth.map.waypoint.MapIcons.guess(p.name)), p.guide);
                 case REMOVE -> TempWaypoints.removeExternal(p.name);
                 case CLEAR_PREFIX -> TempWaypoints.clearExternal(p.name);
                 default -> {}

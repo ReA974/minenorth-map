@@ -50,7 +50,7 @@ public final class WaypointEditor {
                 WaypointType t = typeOrDefault(k.type());
                 int company = company(p, k.company());
                 if (company != Waypoint.NO_COMPANY && t.id().equals(Waypoint.DEFAULT_TYPE) && WaypointTypes.get("entreprise") != null) t = WaypointTypes.get("entreprise");
-                data.put(new Waypoint(name, k.dim(), k.x(), k.y(), k.z(), t.color(), t.id(), company, Waypoint.STATUS_NONE));
+                data.put(new Waypoint(name, k.dim(), k.x(), k.y(), k.z(), t.color(), t.id(), company, Waypoint.STATUS_NONE, icon(k.icon())));
                 say(p, "Point « " + name + " » ajouté.", true);
                 break;
             }
@@ -68,7 +68,7 @@ public final class WaypointEditor {
                     data.rename(w.name(), nn);
                     w = data.get(nn);
                 }
-                data.put(w.withType(t.id()).withCompany(company));
+                data.put(w.withType(t.id()).withCompany(company).withIcon(icon(k.icon())));
                 say(p, "Point « " + nn + " » modifié.", true);
                 break;
             }
@@ -91,6 +91,11 @@ public final class WaypointEditor {
                 return;
         }
         NetworkHandler.syncAll(p.server);
+    }
+
+    /** Icône valide ou "" (automatique) : jamais de valeur inventée par un client modifié. */
+    private static String icon(String id) {
+        return fr.minenorth.map.waypoint.MapIcons.valid(id) ? id : "";
     }
 
     private static WaypointType typeOrDefault(String id) {
