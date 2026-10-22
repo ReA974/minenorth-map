@@ -6,7 +6,7 @@ import net.minecraftforge.client.settings.KeyConflictContext;
 import org.lwjgl.glfw.GLFW;
 
 public final class KeyBindings {
-    public static final String CATEGORY = "key.categories.minenorth_map";
+    public static final String CATEGORY = "key.categories.minenorth";
 
     public static final KeyMapping OPEN_MAP = new KeyMapping("key.minenorth_map.open_map",
             KeyConflictContext.IN_GAME, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, CATEGORY);
