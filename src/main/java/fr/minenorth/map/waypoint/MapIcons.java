@@ -47,7 +47,8 @@ public final class MapIcons {
         add("vetements", "Vêtements", 0xAD1457);
         add("pharmacie", "Pharmacie", 0x00C853);
         add("veterinaire", "Vétérinaire", 0x9575CD);
-        // magasins de l'annuaire « Boutiques » du téléphone (points automatiques, ShopWaypoints) : même sac framboise que l'application
+        add("telephone", "Téléphonie", 0x5E35B1);
+        // magasins de l'annuaire « Boutiques » du téléphone (anciens points automatiques ; à poser à la main) : même sac framboise que l'application
         add("boutiques", "Magasins (annuaire)", 0xE0457B);
         // acheteurs de ressources : même couleur dorée, une seule case dans les filtres (voir filterKey)
         add("rachat", "Acheteurs", 0xC79100);
@@ -98,6 +99,7 @@ public final class MapIcons {
             {"police|commissariat|gendarm|prison|\\bradar|\\bhack", "police"},
             {"veterinaire|\\bveto\\b", "veterinaire"},
             {"pharmac|parapharm", "pharmacie"},
+            {"telephon|smartphone|\\bmobile|\\bportable", "telephone"},
             {"animalerie|\\bpet ?shop|\\banimaux\\b", "petshop"},
             {"vetement|habit|pret.a.porter|fripe|friperie|couture|textile", "vetements"},
             {"hopital|clinique|urgence|blesse|ambulan", "hopital"},

@@ -156,6 +156,11 @@ def boutiques(c):
     c.d.arc([u(11.5), u(6.5), u(20.5), u(15.5)], 180, 360, fill=WHITE, width=int(u(1.6)))
     c.rect(8.5, 11, 23.5, 25, r=2.5); c.rect(8.5, 13.6, 23.5, 14.8, c.cut)
     c.poly([(16, 16.8), (18.6, 19.4), (16, 22), (13.4, 19.4)], c.cut)
+def telephone(c):
+    # smartphone : coque arrondie, écran, encoche et bouton d'accueil
+    c.rect(11, 6.5, 21, 25.5, r=2.6); c.rect(12.4, 9.4, 19.6, 21.6, c.cut, r=0.8)
+    c.rect(14.6, 7.6, 17.4, 8.4, c.cut, r=0.4); c.circ(16, 23.5, 0.9, c.cut)
+    c.rect(13.6, 11.2, 18.4, 12.4, WHITE, r=0.5); c.rect(13.6, 13.8, 16.6, 15, WHITE, r=0.5)
 
 # id -> (couleur, dessin)
 ICONS = {
@@ -172,7 +177,7 @@ ICONS = {
     "rachat": ((199, 145, 0), rachat), "rachat_bois": ((199, 145, 0), rachat_bois), "rachat_minerai": ((199, 145, 0), rachat_minerai),
     "rachat_recolte": ((199, 145, 0), rachat_recolte), "rachat_poisson": ((199, 145, 0), rachat_poisson),
     "rachat_petrole": ((199, 145, 0), rachat_petrole),
-    "boutiques": ((224, 69, 123), boutiques),
+    "boutiques": ((224, 69, 123), boutiques), "telephone": ((94, 53, 177), telephone),
 }
 
 def make(col, fn):

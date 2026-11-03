@@ -67,7 +67,7 @@ public final class ServerEvents {
         if (event.getServer() != null && --buildingCountdown <= 0) {
             buildingCountdown = 600;   // toutes les 30 s : filet de sécurité (fin de location, renommage, fermeture)
             fr.minenorth.map.server.BuildingWaypoints.reconcile(event.getServer());
-            fr.minenorth.map.server.ShopWaypoints.reconcile(event.getServer());   // boutiques de l'annuaire du téléphone
+            fr.minenorth.map.server.ShopWaypoints.purge(event.getServer());   // boutiques : posées à la main désormais, on retire les anciens points automatiques
         }
     }
 
