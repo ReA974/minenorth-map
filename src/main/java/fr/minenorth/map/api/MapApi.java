@@ -19,7 +19,8 @@ public final class MapApi {
 
     /**
      * Comme setMarker, avec une icône de catégorie (garage, concession, boutique, banque, police, hopital, pompier, restaurant, bar,
-     * livraison, station, mairie, casino, sport, entreprise, atelier, gang, maison, aeroport, port, transport, loisir, recolte).
+     * livraison, station, mairie, casino, sport, entreprise, atelier, gang, maison, aeroport, port, transport, loisir, recolte, petshop,
+     * vetements, pharmacie, veterinaire ; acheteurs : rachat, rachat_bois, rachat_minerai, rachat_recolte, rachat_poisson, rachat_petrole).
      * Icône inconnue ou vide : devinée d'après le nom du repère, sinon petit carré coloré.
      */
     public static void setMarker(ServerPlayer p, String name, String dim, int x, int y, int z, int color, boolean guide, String icon) {

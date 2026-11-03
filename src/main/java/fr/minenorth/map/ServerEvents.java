@@ -46,6 +46,7 @@ public final class ServerEvents {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         ServerMapManager.onLogout(event.getEntity().getUUID());
+        fr.minenorth.map.server.GpsRouter.onLogout(event.getEntity().getUUID());
     }
 
     @SubscribeEvent
@@ -66,6 +67,7 @@ public final class ServerEvents {
         if (event.getServer() != null && --buildingCountdown <= 0) {
             buildingCountdown = 600;   // toutes les 30 s : filet de sécurité (fin de location, renommage, fermeture)
             fr.minenorth.map.server.BuildingWaypoints.reconcile(event.getServer());
+            fr.minenorth.map.server.ShopWaypoints.reconcile(event.getServer());   // boutiques de l'annuaire du téléphone
         }
     }
 

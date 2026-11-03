@@ -41,6 +41,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public final class ServerMapManager {
     private static final Map<ResourceKey<Level>, DimData> DIMS = new HashMap<>();
+    private static final int ROAD_MAGIC = 0x4D4E5231; // « MNR1 »
     private static final ConcurrentLinkedQueue<PendingChunk> LOADED = new ConcurrentLinkedQueue<>();
     private static final ArrayDeque<Request> REQUESTS = new ArrayDeque<>();
     private static final Map<UUID, Integer> REQUESTS_PER_PLAYER = new HashMap<>();
@@ -198,14 +199,20 @@ public final class ServerMapManager {
 
     static boolean isRendered(ServerLevel level, int cx, int cz) {
         ServerRegion r = region(level, cx >> 5, cz >> 5, false);
-        return r != null && r.rendered.get(ServerRegion.chunkIndex(cx, cz));
+        // dessiné avant le GPS (routes inconnues) : redessiné au prochain chargement pour noter ses routes
+        int idx = ServerRegion.chunkIndex(cx, cz);
+        return r != null && r.rendered.get(idx) && r.roadChunks.get(idx);
     }
 
     static void renderChunk(ServerLevel level, LevelChunk chunk) {
         int cx = chunk.getPos().x, cz = chunk.getPos().z;
         ServerRegion r = region(level, cx >> 5, cz >> 5, true);
-        boolean changed = ChunkColorizer.render(level, chunk, r.colors);
+        boolean changed = ChunkColorizer.render(level, chunk, r.colors, r.roads);
         int idx = ServerRegion.chunkIndex(cx, cz);
+        if (!r.roadChunks.get(idx)) {
+            r.roadChunks.set(idx);
+            r.dirty = true;
+        }
         if (changed) {
             r.markChanged();
             r.rendered.set(idx);
@@ -215,6 +222,13 @@ public final class ServerMapManager {
         }
         r.lastAccess = System.currentTimeMillis();
     }
+
+    /** Région pour le GPS (sans la créer) ; null si jamais dessinée. Thread serveur. */
+    static ServerRegion routeRegion(ServerLevel level, int rx, int rz) {
+        return region(level, rx, rz, false);
+    }
+
+    static MinecraftServer server() { return server; }
 
     private static DimData dim(ServerLevel level) {
         return DIMS.computeIfAbsent(level.dimension(), k -> {
@@ -278,7 +292,28 @@ public final class ServerMapManager {
             in.readFully(comp);
             byte[] colors = RegionCodec.decompress(comp);
             if (colors == null) return null;
-            return new ServerRegion(rx, rz, colors, BitSet.valueOf(bits), version);
+            // routes (GPS) : bloc facultatif en fin de fichier, absent des fichiers d'avant le GPS
+            byte[] roads = new byte[ServerRegion.ROAD_BYTES];
+            BitSet roadChunks = new BitSet(1024);
+            try {
+                if (in.readInt() == ROAD_MAGIC) {
+                    byte[] rb = new byte[128];
+                    in.readFully(rb);
+                    int rl = in.readInt();
+                    if (rl > 0 && rl <= 4 * ServerRegion.ROAD_BYTES) {
+                        byte[] rc = new byte[rl];
+                        in.readFully(rc);
+                        byte[] r = RegionCodec.decompress(rc, ServerRegion.ROAD_BYTES);
+                        if (r != null) {
+                            roads = r;
+                            roadChunks = BitSet.valueOf(rb);
+                        }
+                    }
+                }
+            } catch (java.io.EOFException ignored) {
+                // ancien fichier : routes inconnues
+            }
+            return new ServerRegion(rx, rz, colors, BitSet.valueOf(bits), version, roads, roadChunks);
         } catch (IOException e) {
             MineNorthMap.LOGGER.warn("Carte : lecture impossible {}", f, e);
             return null;
@@ -303,6 +338,14 @@ public final class ServerMapManager {
                         out.write(bits);
                         out.writeInt(comp.length);
                         out.write(comp);
+                        byte[] rbits = new byte[128];
+                        byte[] rsrc = r.roadChunks.toByteArray();
+                        System.arraycopy(rsrc, 0, rbits, 0, Math.min(rsrc.length, 128));
+                        byte[] rcomp = RegionCodec.compress(r.roads);
+                        out.writeInt(ROAD_MAGIC);
+                        out.write(rbits);
+                        out.writeInt(rcomp.length);
+                        out.write(rcomp);
                     }
                     Files.move(tmp, f, StandardCopyOption.REPLACE_EXISTING);
                     r.dirty = false;

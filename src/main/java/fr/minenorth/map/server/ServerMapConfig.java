@@ -12,6 +12,15 @@ public final class ServerMapConfig {
     public static final ForgeConfigSpec.IntValue REQUESTS_PER_TICK;
     public static final ForgeConfigSpec.IntValue PLAYERS_OP_LEVEL;
     public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> TYPES;
+    public static final ForgeConfigSpec.BooleanValue GPS_ENABLED;
+    public static final ForgeConfigSpec.IntValue GPS_MAX_DISTANCE;
+    public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> ROAD_BLOCKS;
+
+    /** Blocs de route par défaut : id exact (« mod:bloc ») ou morceau de nom (« asphalt » = tout bloc dont l'id contient asphalt). */
+    public static final java.util.List<String> DEFAULT_ROADS = java.util.List.of(
+            "asphalt", "road", "tarmac", "bitume", "goudron",
+            "minecraft:gray_concrete", "minecraft:black_concrete", "minecraft:gray_concrete_powder", "minecraft:black_concrete_powder",
+            "minecraft:dirt_path");
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -34,6 +43,15 @@ public final class ServerMapConfig {
         TYPES = b.comment("Types de points de repère : \"id;Libellé;RRGGBB\". Chaque type a une couleur fixe, les joueurs filtrent par type.",
                         "Le type par défaut des nouveaux points est \"autre\" (à garder dans la liste).")
                 .defineList("types", WaypointTypes.DEFAULTS, o -> o instanceof String);
+        b.pop();
+        b.push("gps");
+        GPS_ENABLED = b.comment("Itinéraire GPS : le trajet vers le point guidé suit les routes (calculé par le serveur)")
+                .define("itineraire", true);
+        GPS_MAX_DISTANCE = b.comment("Distance maximale (blocs) d'un itinéraire calculé ; au-delà, guidage en ligne droite")
+                .defineInRange("distanceMax", 8000, 256, 30000);
+        ROAD_BLOCKS = b.comment("Blocs de route : id exact (\"minecraft:gray_concrete\") ou morceau d'id (\"asphalt\").",
+                        "Après un changement, refaire /carte generer sur la ville pour mettre les routes à jour (/carte route ajouter : bloc sous tes pieds).")
+                .defineList("blocsRoute", DEFAULT_ROADS, o -> o instanceof String);
         b.pop();
         SPEC = b.build();
     }

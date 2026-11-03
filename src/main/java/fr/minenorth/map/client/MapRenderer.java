@@ -79,6 +79,49 @@ public final class MapRenderer {
         RenderSystem.disableBlend();
     }
 
+    /** Itinéraire GPS : trait violet bordé de noir (rien si aucun itinéraire). toScreen : (x, z) monde -> {sx, sy}. */
+    public static void drawRoute(GuiGraphics g, java.util.function.BiFunction<Double, Double, float[]> toScreen, float width) {
+        float[][] pts = GpsRoute.screenPoints(toScreen);
+        if (pts == null) return;
+        drawPolyline(g, pts[0], pts[1], width + 2f, 0xC0000000);
+        drawPolyline(g, pts[0], pts[1], width, 0xFF000000 | GpsRoute.COLOR);
+    }
+
+    /** Ligne brisée épaisse (segments + carrés aux jointures pour des virages pleins). */
+    public static void drawPolyline(GuiGraphics g, float[] xs, float[] ys, float width, int argb) {
+        int n = xs.length;
+        if (n < 2) return;
+        float a = (argb >>> 24 & 255) / 255f, r = (argb >> 16 & 255) / 255f, gg = (argb >> 8 & 255) / 255f, b = (argb & 255) / 255f;
+        float hw = width / 2f;
+        g.flush();
+        Matrix4f m = g.pose().last().pose();
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableCull();
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        BufferBuilder bb = Tesselator.getInstance().getBuilder();
+        bb.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        for (int i = 0; i < n - 1; i++) {
+            float dx = xs[i + 1] - xs[i], dy = ys[i + 1] - ys[i];
+            float len = Mth.sqrt(dx * dx + dy * dy);
+            if (len < 1.0E-3f) continue;
+            float px = -dy / len * hw, py = dx / len * hw;
+            bb.vertex(m, xs[i] + px, ys[i] + py, 0).color(r, gg, b, a).endVertex();
+            bb.vertex(m, xs[i + 1] + px, ys[i + 1] + py, 0).color(r, gg, b, a).endVertex();
+            bb.vertex(m, xs[i + 1] - px, ys[i + 1] - py, 0).color(r, gg, b, a).endVertex();
+            bb.vertex(m, xs[i] - px, ys[i] - py, 0).color(r, gg, b, a).endVertex();
+        }
+        for (int i = 1; i < n - 1; i++) {
+            bb.vertex(m, xs[i] - hw, ys[i] - hw, 0).color(r, gg, b, a).endVertex();
+            bb.vertex(m, xs[i] - hw, ys[i] + hw, 0).color(r, gg, b, a).endVertex();
+            bb.vertex(m, xs[i] + hw, ys[i] + hw, 0).color(r, gg, b, a).endVertex();
+            bb.vertex(m, xs[i] + hw, ys[i] - hw, 0).color(r, gg, b, a).endVertex();
+        }
+        BufferUploader.drawWithShader(bb.end());
+        RenderSystem.enableCull();
+        RenderSystem.disableBlend();
+    }
+
     /** Flèche blanche bordée de noir (le joueur). */
     public static void drawPlayerArrow(GuiGraphics g, float x, float y, float dirX, float dirY, float size) {
         drawArrow(g, x, y, dirX, dirY, size + 1.6f, 0xFF000000);

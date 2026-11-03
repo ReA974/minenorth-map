@@ -43,6 +43,24 @@ public final class MapIcons {
         add("transport", "Transport", 0x00ACC1);
         add("loisir", "Loisir", 0xEC407A);
         add("recolte", "Récolte", 0x7CB342);
+        add("petshop", "Animalerie", 0x00BFA5);
+        add("vetements", "Vêtements", 0xAD1457);
+        add("pharmacie", "Pharmacie", 0x00C853);
+        add("veterinaire", "Vétérinaire", 0x9575CD);
+        // magasins de l'annuaire « Boutiques » du téléphone (points automatiques, ShopWaypoints) : même sac framboise que l'application
+        add("boutiques", "Magasins (annuaire)", 0xE0457B);
+        // acheteurs de ressources : même couleur dorée, une seule case dans les filtres (voir filterKey)
+        add("rachat", "Acheteurs", 0xC79100);
+        add("rachat_bois", "Acheteur de bois", 0xC79100);
+        add("rachat_minerai", "Acheteur de minerais", 0xC79100);
+        add("rachat_recolte", "Acheteur de récoltes", 0xC79100);
+        add("rachat_poisson", "Acheteur de poisson", 0xC79100);
+        add("rachat_petrole", "Acheteur de pétrole", 0xC79100);
+    }
+
+    /** Case de filtre d'une icône : toutes les icônes d'acheteur partagent la case « rachat ». */
+    public static String filterKey(String id) {
+        return id != null && id.startsWith("rachat_") ? "rachat" : id;
     }
 
     public static Map<String, Icon> all() { return ALL; }
@@ -78,6 +96,10 @@ public final class MapIcons {
             {"concession|vehicule|\\bauto\\b|\\bmoto\\b", "concession"},
             {"banque|\\batm\\b|distributeur|eurobank", "banque"},
             {"police|commissariat|gendarm|prison|\\bradar|\\bhack", "police"},
+            {"veterinaire|\\bveto\\b", "veterinaire"},
+            {"pharmac|parapharm", "pharmacie"},
+            {"animalerie|\\bpet ?shop|\\banimaux\\b", "petshop"},
+            {"vetement|habit|pret.a.porter|fripe|friperie|couture|textile", "vetements"},
             {"hopital|clinique|urgence|blesse|ambulan", "hopital"},
             {"pompier|caserne|incendie|\\bfeu\\b", "pompier"},
             {"restaurant|\\bresto|pizz|burger|snack|kebab|cafe|brasserie|boulang|traiteur", "restaurant"},
@@ -88,20 +110,36 @@ public final class MapIcons {
             {"casino|poker|jeux", "casino"},
             {"sport|\\bgym|fitness|musculation", "sport"},
             {"gang|territoire|\\bclan\\b|\\bmafia", "gang"},
-            {"boutique|magasin|\\bshop|superette|epicerie|supermarche|marche|vetement|armurerie|pharmacie", "boutique"},
+            {"boutique|magasin|\\bshop|superette|epicerie|supermarche|marche|armurerie", "boutique"},
             {"maison|appart|villa|logement|immeuble", "maison"},
             {"atelier|menuiserie|forge|usine|fonderie|ferme|scierie|raffinerie", "atelier"},
     };
     private static final Pattern[] PATTERNS = new Pattern[KEYWORDS.length];
 
+    /** Acheteur de ressources (testé avant tout le reste : « Rachat de bois » n'est pas un atelier), puis la ressource rachetée. */
+    private static final Pattern BUYER = Pattern.compile("acheteur|rachat|revente|reprise|recycl");
+    private static final String[][] RESOURCES = {
+            {"bois|bucheron|buche|scierie|\\bplanche", "rachat_bois"},
+            {"minerai|\\bmine\\b|\\bor\\b|\\bfer\\b|diamant|charbon|cuivre|emeraude|lapis|redstone", "rachat_minerai"},
+            {"poisson|peche|pecheur|crustace", "rachat_poisson"},
+            {"petrole|\\bbrut\\b|raffin", "rachat_petrole"},
+            {"fruit|recolte|ferme|\\bble\\b|legume|pomme|agricol|cereale", "rachat_recolte"},
+    };
+    private static final Pattern[] RESOURCE_PATTERNS = new Pattern[RESOURCES.length];
+
     static {
         for (int i = 0; i < KEYWORDS.length; i++) PATTERNS[i] = Pattern.compile(KEYWORDS[i][0]);
+        for (int i = 0; i < RESOURCES.length; i++) RESOURCE_PATTERNS[i] = Pattern.compile(RESOURCES[i][0]);
     }
 
     /** Devine une icône d'après le nom (sans accents, minuscules). "" si rien ne correspond. */
     public static String guess(String name) {
         if (name == null || name.isEmpty()) return "";
         String s = Normalizer.normalize(name, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
+        if (BUYER.matcher(s).find()) {
+            for (int i = 0; i < RESOURCE_PATTERNS.length; i++) if (RESOURCE_PATTERNS[i].matcher(s).find()) return RESOURCES[i][1];
+            return "rachat";
+        }
         for (int i = 0; i < PATTERNS.length; i++) if (PATTERNS[i].matcher(s).find()) return KEYWORDS[i][1];
         return "";
     }

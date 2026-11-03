@@ -76,7 +76,7 @@ public final class ClientWaypoints {
     public static boolean passesFilter(Waypoint w) {
         if (w.type().isEmpty()) return true;
         if (isTypeHidden(w.type())) return false;
-        if (!w.icon().isEmpty() && isIconHidden(w.icon())) return false;
+        if (!w.icon().isEmpty() && isIconHidden(fr.minenorth.map.waypoint.MapIcons.filterKey(w.icon()))) return false;
         return !(ClientConfig.ONLY_OPEN.get() && w.status() == Waypoint.STATUS_CLOSED);
     }
 

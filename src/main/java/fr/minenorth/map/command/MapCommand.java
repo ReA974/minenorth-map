@@ -54,6 +54,7 @@ import java.util.Map;
  * /carte generer rayon <blocs>                     -> dessine la carte commune autour de toi
  * /carte generer zone <x1> <z1> <x2> <z2>
  * /carte generer statut | stop
+ * /carte route ajouter [bloc] | retirer <bloc> | liste  -> blocs de route du GPS (sans argument : le bloc sous tes pieds)
  * Les noms avec espaces doivent être entre guillemets. Les types (et leur couleur) sont définis dans la config serveur.
  */
 public final class MapCommand {
@@ -82,6 +83,48 @@ public final class MapCommand {
     private static final SuggestionProvider<CommandSourceStack> COMPANY_SUGGEST = (ctx, b) ->
             SharedSuggestionProvider.suggest(CompanyBridge.companies(ctx.getSource().getServer()).stream()
                     .map(c -> StringArgumentType.escapeIfRequired((String) c[1])), b);
+
+    // ------------------------------------------------------------------ routes (GPS)
+
+    /** /carte route ajouter : le bloc sous les pieds (le marquage éventuel est ignoré : on prend le premier bloc plein). */
+    private static int roadAddUnderFeet(CommandContext<CommandSourceStack> c) throws CommandSyntaxException {
+        ServerPlayer p = c.getSource().getPlayerOrException();
+        BlockPos pos = p.blockPosition();
+        ServerLevel level = p.serverLevel();
+        for (int i = 0; i < 3; i++) {
+            BlockPos q = pos.below(i);
+            var st = level.getBlockState(q);
+            if (st.isCollisionShapeFullBlock(level, q)) {
+                ResourceLocation id = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(st.getBlock());
+                if (id != null) return roadEdit(c, id.toString(), true);
+            }
+        }
+        c.getSource().sendFailure(Component.literal("Aucun bloc plein sous tes pieds."));
+        return 0;
+    }
+
+    private static int roadEdit(CommandContext<CommandSourceStack> c, String raw, boolean add) {
+        String entry = raw.trim().toLowerCase(Locale.ROOT);
+        if (entry.isEmpty()) return 0;
+        List<String> list = new java.util.ArrayList<>();
+        for (Object o : fr.minenorth.map.server.ServerMapConfig.ROAD_BLOCKS.get()) list.add(String.valueOf(o));
+        boolean changed = add ? !list.contains(entry) && list.add(entry) : list.remove(entry);
+        if (!changed) {
+            c.getSource().sendFailure(Component.literal(add ? "« " + entry + " » est déjà une route." : "« " + entry + " » n'est pas dans la liste."));
+            return 0;
+        }
+        fr.minenorth.map.server.ServerMapConfig.ROAD_BLOCKS.set(list);
+        fr.minenorth.map.server.ServerMapConfig.ROAD_BLOCKS.save();
+        c.getSource().sendSuccess(() -> Component.literal((add ? "Route ajoutée : " : "Route retirée : ") + entry
+                + ". Refais /carte generer sur la ville pour mettre l'itinéraire GPS à jour.").withStyle(ChatFormatting.GREEN), true);
+        return 1;
+    }
+
+    private static int roadList(CommandContext<CommandSourceStack> c) {
+        c.getSource().sendSystemMessage(Component.literal("Blocs de route (GPS) : " + String.join(", ",
+                fr.minenorth.map.server.ServerMapConfig.ROAD_BLOCKS.get().stream().map(String::valueOf).toList())).withStyle(ChatFormatting.GRAY));
+        return 1;
+    }
 
     public static void register(CommandDispatcher<CommandSourceStack> d) {
         d.register(Commands.literal("carte")
@@ -118,6 +161,16 @@ public final class MapCommand {
                                     : "Aucune génération en cours.").withStyle(ChatFormatting.YELLOW));
                             return 1;
                         })))
+                .then(Commands.literal("route")
+                        .then(Commands.literal("ajouter")
+                                .executes(MapCommand::roadAddUnderFeet)
+                                .then(Commands.argument("bloc", StringArgumentType.greedyString())
+                                        .executes(c -> roadEdit(c, StringArgumentType.getString(c, "bloc"), true))))
+                        .then(Commands.literal("retirer")
+                                .then(Commands.argument("bloc", StringArgumentType.greedyString())
+                                        .suggests((ctx, b) -> SharedSuggestionProvider.suggest(fr.minenorth.map.server.ServerMapConfig.ROAD_BLOCKS.get().stream().map(String::valueOf), b))
+                                        .executes(c -> roadEdit(c, StringArgumentType.getString(c, "bloc"), false))))
+                        .then(Commands.literal("liste").executes(MapCommand::roadList)))
                 .then(Commands.literal("point")
                         .then(Commands.literal("ajouter")
                                 .then(Commands.argument("nom", StringArgumentType.string())

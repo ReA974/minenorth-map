@@ -66,7 +66,8 @@ Les mêmes droits que les commandes sont revérifiés côté serveur ; les comma
 Points stockés dans `world/data/minenorth_map_waypoints.dat`, synchronisés en direct à tous les joueurs.
 
 ## Icônes de catégorie (comme sur la carte d'Altis Life)
-Les points ont une **icône** (pastille ronde colorée + pictogramme) au lieu du simple carré : garage, concession, boutique, banque/ATM, police, hôpital, pompiers/secours, restaurant, bar/club, livraison, station-service, mairie, casino, salle de sport, entreprise, atelier, gang/territoire, maison, aéroport, port, transport, loisir, récolte.
+Les points ont une **icône** (pastille ronde colorée + pictogramme) au lieu du simple carré : garage, concession, boutique, banque/ATM, police, hôpital, pompiers/secours, restaurant, bar/club, livraison, station-service, mairie, casino, salle de sport, entreprise, atelier, gang/territoire, maison, aéroport, port, transport, loisir, récolte, animalerie, vêtements, pharmacie, vétérinaire.
+- **Acheteurs de ressources** : une même pastille **dorée** avec une petite pièce en bas à droite ; le pictogramme dit ce qui est racheté : bois (`rachat_bois`), minerais (`rachat_minerai`), récoltes/fruits (`rachat_recolte`), poisson (`rachat_poisson`), pétrole (`rachat_petrole`), ou `rachat` (symbole €) pour un acheteur général. Devinée d'après le nom : un nom avec « acheteur / rachat / revente / reprise / recyclage » donne une icône d'acheteur, précisée par la ressource (« Rachat de bois » → bois, « Acheteur de minerais » → minerais). Une seule case « Acheteurs » dans les filtres pour toute la famille.
 - **Choix** : dans l'écran d'édition d'un point (mode Édition de la carte pour les OP, ou clic droit pour un point perso), grille d'icônes cliquable ; la 1re case (∅) = automatique.
 - **Automatique** : sans choix explicite, l'icône vient du type du point (commerce → boutique, secours → pompiers, logement → maison…) et, pour les types entreprise / commerce / loisir, du nom (« Pizzeria Chez Marco » → restaurant). Le type « autre » et les anciens points sans type gardent leur petit carré coloré.
 - **Rendu** : taille constante au zoom (16 px sur la carte, 11 px sur la minicarte), icônes qui se chevauchent regroupées (« +n », liste dans l'info-bulle), nom affiché au survol, pour le point guidé ou à fort zoom.
@@ -74,8 +75,16 @@ Les points ont une **icône** (pastille ronde colorée + pictogramme) au lieu du
 - **Régénérer les textures** : `python tools/gen_map_icons.py` (Pillow) écrit les PNG 32x32 dans `assets/minenorth_map/textures/map_icons/`.
 - Sauvegarde rétro-compatible (champ `icon` facultatif dans le .dat et dans `mes_points.json`). Protocole réseau 8 : serveur et clients doivent avoir la même version.
 
+## Itinéraire GPS
+Dès qu'un point est guidé (clic sur la carte, point perso, repère temporaire, ou `setMarker(..., guidage = true)` d'un autre mod), le client demande au serveur un trajet **par les routes**.
+- **Affichage** : tracé violet (partie restante) sur la carte et la minicarte, bandeau « distance par la route » avec une flèche vers la suite du trajet, flèches animées au sol sur 80 blocs devant le joueur (posées sur le sol le plus proche de sa hauteur : ponts, tunnels).
+- **Recalcul** : hors du trajet (> 20 blocs pendant 2 s) ; fin à l'arrivée ou quand le guidage s'arrête. Pas de trajet trouvé / trop loin : guidage classique en ligne droite.
+- **Calcul (serveur)** : A* pondéré sur une grille de cases de 2 à 8 blocs selon la distance (route = 1, terrain = 4, inconnu = 8, eau = 20), sur un thread à part, puis simplification du tracé. Pas plus d'une demande par seconde et par joueur.
+- **Routes** : au dessin de la carte, le serveur note 1 bit « route » par bloc (bloc du dessus, ou bloc sous un marquage / tapis / dalle fine), d'après `[gps] blocsRoute` de la config serveur (id exact `mod:bloc` ou morceau d'id comme `asphalt`). Les chunks dessinés avant le GPS sont redessinés au prochain chargement ; en attendant, les routes y sont devinées d'après la couleur (béton gris / noir). Commandes : `/carte route ajouter` (bloc sous tes pieds) ou `/carte route ajouter <bloc>`, `/carte route retirer <bloc>`, `/carte route liste` ; après un changement, `/carte generer` sur la ville.
+- Config serveur `[gps]` : `itineraire` (on/off), `distanceMax` (8000 blocs). Config client `[gps]` : `itineraire`, `flechesAuSol`. Protocole réseau 9.
+
 ## Config client
-`config/minenorth_map-client.toml` : taille/position/zoom de la minicarte, coordonnées, guidage.
+`config/minenorth_map-client.toml` : taille/position/zoom de la minicarte, coordonnées, guidage, itinéraire GPS et flèches au sol.
 
 ## API pour les autres mods (repères poussés par le serveur)
 `fr.minenorth.map.api.MapApi` (appel par réflexion) : `setMarker(joueur, nom, dimension, x, y, z, couleur, guidage)`, `removeMarker`, `clearMarkers(préfixe)`.
@@ -92,3 +101,7 @@ inverse (y compris par outils d'intelligence artificielle) et utilisation pour e
 - La config serveur est dans `config/minenorth_map-server.toml` (type COMMON). Elle était auparavant dans `<monde>/serverconfig/` (type SERVER), qui revenait à zéro à chaque redémarrage sur certains serveurs : copier l'ancien fichier une fois.
 - Types de base ajoutés automatiquement avant « autre » s'ils ne sont pas dans `types` : `recolte`, `traitement`, `garage`.
 - `/carte point typegroupe <préfixe> <type>` change le type de tous les points dont le nom commence par le préfixe (ex. `Garage_`).
+
+## Boutiques de l'annuaire sur la carte (02/11)
+`server/ShopWaypoints` (toutes les 30 s, avec `BuildingWaypoints`) : un point automatique, visible de tous, par boutique **publique** de l'annuaire « Boutiques » du téléphone (liste lue par réflexion : `com.minenorth_shops.PhoneDirectory.mapShops` ; jamais le marché noir, les boutiques d'entreprise ni celles réservées à un métier), à l'emplacement de son vendeur. Magasins : nouvelle icône **`boutiques`** (pastille framboise `#E0457B` avec le sac de l'application, « Magasins (annuaire) » dans les filtres ; `tools/gen_map_icons.py`) ; boutiques de rachat : pastilles dorées des acheteurs (ressource devinée d'après le nom). Clés `shop:<id>` dans `autoMap` / `suppressed` (BuildingWaypoints les ignore). Un point posé à la main à moins de 10 blocs du vendeur couvre déjà la boutique (pas de doublon, ex. « Rachat de poisson ») ; point supprimé par l'admin : ne revient pas ; vendeur dans une zone non chargée : le point reste où il était. Le bouton « Itinéraire » de l'application pose un repère avec la même icône.
+**Jar renommé** : `build/libs/minenorth-map-1.0.0.jar` (tiret ; supprimer l'ancien `minenorth_map-1.0.0.jar`, l'identifiant du mod reste `minenorth_map`). **Non testé en jeu.**

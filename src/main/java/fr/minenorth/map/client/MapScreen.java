@@ -128,7 +128,19 @@ public class MapScreen extends Screen {
     /** Case du panneau de filtres. kind : TYPE / ICON (id), ONLY_OPEN, TYPES_ALL / TYPES_NONE, ICONS_ALL / ICONS_NONE, HEADER. */
     private record Cell(int x, int y, int w, String kind, String id, String label, int color, boolean on) {}
 
-    private static final int TYPE_COL_W = 150, ICON_COL_W = 112, ICON_ROWS = 12;
+    private static final int TYPE_COL_W = 150, ICON_COL_W = 112;
+
+    /** Icônes qui ont leur propre case de filtre (les acheteurs de ressources partagent la case « rachat »). */
+    private static List<fr.minenorth.map.waypoint.MapIcons.Icon> filterIcons() {
+        List<fr.minenorth.map.waypoint.MapIcons.Icon> out = new java.util.ArrayList<>();
+        for (fr.minenorth.map.waypoint.MapIcons.Icon ic : fr.minenorth.map.waypoint.MapIcons.all().values()) {
+            if (fr.minenorth.map.waypoint.MapIcons.filterKey(ic.id()).equals(ic.id())) out.add(ic);
+        }
+        return out;
+    }
+
+    /** Lignes par colonne d'icônes (deux colonnes). */
+    private static int iconRows() { return Math.max(12, (filterIcons().size() + 1) / 2); }
 
     private int filterW() { return TYPE_COL_W + 2 * ICON_COL_W; }
 
@@ -149,20 +161,20 @@ public class MapScreen extends Screen {
         // catégories d'icônes : deux colonnes
         int ix = x0 + TYPE_COL_W;
         out.add(new Cell(ix, y0, ICON_COL_W * 2, "HEADER", "", "§6Catégories d'icônes", 0, true));
-        int n = 0;
-        for (fr.minenorth.map.waypoint.MapIcons.Icon ic : fr.minenorth.map.waypoint.MapIcons.all().values()) {
-            int col = n / ICON_ROWS, row = n % ICON_ROWS;
+        int n = 0, rows = iconRows();
+        for (fr.minenorth.map.waypoint.MapIcons.Icon ic : filterIcons()) {
+            int col = n / rows, row = n % rows;
             out.add(new Cell(ix + col * ICON_COL_W, y0 + (row + 1) * FILTER_ROW_H, ICON_COL_W, "ICON", ic.id(), ic.label(), ic.color(), !ClientWaypoints.isIconHidden(ic.id())));
             n++;
         }
-        int lastRow = ICON_ROWS + 1;
+        int lastRow = rows + 1;
         out.add(new Cell(ix + ICON_COL_W, y0 + lastRow * FILTER_ROW_H, ICON_COL_W / 2, "ICONS_ALL", "", "§nTout", 0, true));
         out.add(new Cell(ix + ICON_COL_W + ICON_COL_W / 2, y0 + lastRow * FILTER_ROW_H, ICON_COL_W / 2, "ICONS_NONE", "", "§nAucun", 0, true));
         return out;
     }
 
     private int filterRows() {
-        return Math.max(ClientWaypoints.types().size() + 3, ICON_ROWS + 2);
+        return Math.max(ClientWaypoints.types().size() + 3, iconRows() + 2);
     }
 
     private int filterX() { return Math.max(PANEL_W + 2, width - filterW() - 6); }
@@ -275,6 +287,7 @@ public class MapScreen extends Screen {
         g.fill(0, 0, width, height, 0xFF0E0E12);
         g.enableScissor(PANEL_W, 0, width, height);
         MapRenderer.drawTerrain(g, centerX, centerZ, zoom, PANEL_W, 0, width, height);
+        MapRenderer.drawRoute(g, (wx, wz) -> new float[]{toScreenX(wx), toScreenY(wz)}, 4f);
 
         Waypoint hovered = null;
         MapIconRenderer.Placed hoveredCluster = null;
@@ -375,7 +388,7 @@ public class MapScreen extends Screen {
 
         // ---- aide bas
         String help = editing() ? "§6MODE ÉDITION§7 • Clic sur un point : le modifier • Clic droit sur la carte : nouveau point • Glisser : déplacer • Molette : zoom"
-                : "Clic : guidage • Clic droit : point perso (créer / gérer) • Ctrl + clic droit : repère temporaire"
+                : "Clic : itinéraire GPS • Clic droit : point perso (créer / gérer) • Ctrl + clic droit : repère temporaire"
                 + (ClientEditor.canEdit() ? " • Maj + clic droit : TP" : "");
         g.fill(PANEL_W, height - 13, width, height, 0x90000000);
         g.drawCenteredString(font, help, Math.round(mapCX()), height - 11, 0xFFAAAAAA);

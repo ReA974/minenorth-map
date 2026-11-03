@@ -29,17 +29,22 @@ public final class RegionCodec {
 
     /** null si données invalides. */
     public static byte[] decompress(byte[] data) {
+        return decompress(data, BYTES);
+    }
+
+    /** Décompresse exactement size octets ; null si données invalides. */
+    public static byte[] decompress(byte[] data, int size) {
         Inflater inf = new Inflater();
         try {
             inf.setInput(data);
-            byte[] out = new byte[BYTES];
+            byte[] out = new byte[size];
             int off = 0;
-            while (!inf.finished() && off < BYTES) {
-                int n = inf.inflate(out, off, BYTES - off);
+            while (!inf.finished() && off < size) {
+                int n = inf.inflate(out, off, size - off);
                 if (n == 0 && (inf.needsInput() || inf.needsDictionary())) break;
                 off += n;
             }
-            return off == BYTES ? out : null;
+            return off == size ? out : null;
         } catch (DataFormatException e) {
             return null;
         } finally {

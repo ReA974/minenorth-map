@@ -9,7 +9,7 @@ version = mod_version
 group = mod_group_id
 
 base {
-    archivesName = mod_id
+    archivesName = "minenorth-map"   // nom du jar en tiret (jamais minenorth_map-…jar) ; l'identifiant du mod reste minenorth_map
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
@@ -47,7 +47,10 @@ repositories {
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
 }
+test { useJUnitPlatform() }
 
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [

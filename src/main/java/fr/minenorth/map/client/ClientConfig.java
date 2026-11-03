@@ -19,6 +19,8 @@ public final class ClientConfig {
     public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> HIDDEN_ICONS;
     public static final ForgeConfigSpec.BooleanValue ONLY_OPEN;
     public static final ForgeConfigSpec.IntValue MAX_PERSO;
+    public static final ForgeConfigSpec.BooleanValue GPS_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue GPS_GROUND;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -43,6 +45,11 @@ public final class ClientConfig {
                 .defineInRange("dureeReperesPerso", 60, 0, 1440);
         MAX_PERSO = b.comment("Nombre maximum de points perso (créés par le joueur sur la carte, sans expiration)")
                 .defineInRange("maxPointsPerso", 50, 1, 500);
+        b.pop();
+        b.push("gps");
+        GPS_ENABLED = b.comment("Itinéraire GPS vers le point guidé : trajet par les routes sur la carte et la minicarte")
+                .define("itineraire", true);
+        GPS_GROUND = b.comment("Flèches de l'itinéraire dessinées au sol devant toi").define("flechesAuSol", true);
         b.pop();
         SPEC = b.build();
     }

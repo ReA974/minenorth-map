@@ -57,7 +57,7 @@ public class PointEditScreen extends Screen {
         this.icon = w.icon();
     }
 
-    private int h() { return editing == null ? 176 : 206; }
+    private int h() { return editing == null ? 196 : 226; }
     private int pickerY() { return editing == null ? 94 : 142; }
 
     @Override

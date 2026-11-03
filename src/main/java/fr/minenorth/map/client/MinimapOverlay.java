@@ -49,6 +49,7 @@ public final class MinimapOverlay {
 
         g.enableScissor(x0, y0, x1, y1);
         MapRenderer.drawTerrain(g, px, pz, zoom, x0, y0, x1, y1);
+        MapRenderer.drawRoute(g, (wx, wz) -> new float[]{cx + (float) ((wx - px) * zoom), cy + (float) ((wz - pz) * zoom)}, 3f);
         boolean hide = ClientConfig.HIDE_WAYPOINTS.get();
         java.util.List<Waypoint> shown = new java.util.ArrayList<>();
         for (Waypoint w : ClientWaypoints.inDimension(dim)) if (ClientWaypoints.isTracked(w) || (!hide && ClientWaypoints.passesFilter(w))) shown.add(w);
@@ -100,18 +101,21 @@ public final class MinimapOverlay {
         if (!t.dimension().equals(dim)) {
             text = t.name() + " • autre dimension";
         } else {
-            double dx = t.x() + 0.5 - px, dz = t.z() + 0.5 - pz;
-            int dist = (int) Math.round(Math.sqrt(dx * dx + dz * dz));
+            // itinéraire GPS : flèche vers la suite du trajet et distance par la route ; sinon ligne droite
+            boolean gps = GpsRoute.active();
+            double dx = (gps ? GpsRoute.aheadX() : t.x() + 0.5) - px, dz = (gps ? GpsRoute.aheadZ() : t.z() + 0.5) - pz;
+            double dist = gps ? GpsRoute.remaining() : Math.sqrt(dx * dx + dz * dz);
             float targetYaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
             float rel = Mth.wrapDegrees(targetYaw - yaw) * Mth.DEG_TO_RAD;
             dir = new float[]{Mth.sin(rel), -Mth.cos(rel)};
-            text = t.name() + " • " + dist + " m";
+            text = t.name() + " • " + (dist >= 1000 ? String.format(java.util.Locale.FRANCE, "%.1f km", dist / 1000) : Math.round(dist) + " m")
+                    + (gps ? " par la route" : "");
         }
         int tw = font.width(text);
         int boxW = tw + (dir != null ? 22 : 10);
         int bx = sw / 2 - boxW / 2, by = 4;
         g.fill(bx, by, bx + boxW, by + 16, 0x90000000);
-        g.fill(bx, by + 15, bx + boxW, by + 16, 0xFF000000 | t.color());
+        g.fill(bx, by + 15, bx + boxW, by + 16, 0xFF000000 | (GpsRoute.active() ? GpsRoute.COLOR : t.color()));
         int textX = bx + 5;
         if (dir != null) {
             MapRenderer.drawArrow(g, bx + 9, by + 8, dir[0], dir[1], 5.5f, 0xFF000000);

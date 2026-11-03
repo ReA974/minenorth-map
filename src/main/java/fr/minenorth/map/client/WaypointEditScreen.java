@@ -18,7 +18,7 @@ import java.util.List;
  * qui revérifie le droit et renvoie les points à tout le monde.
  */
 public class WaypointEditScreen extends Screen {
-    private static final int W = 270, H = 214;
+    private static final int W = 270, H = 234;
 
     private final Screen parent;
     /** Point modifié, ou null pour un nouveau point. */

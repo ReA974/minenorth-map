@@ -110,6 +110,53 @@ def recolte(c):
     c.poly([(8, 24), (8.5, 15), (14, 8.5), (24, 7.5), (24, 15), (18, 22), (10.5, 24.2)])
     c.line([(9, 24), (19.5, 12)], 1.2, c.cut)
 
+def paw(c, cx, cy, k=1.0):
+    for dx, dy in ((-6.2, -4.6), (-2.4, -8.6), (2.4, -8.6), (6.2, -4.6)): c.circ(cx + dx * k, cy + dy * k, 2.3 * k)
+    c.d.ellipse([u(cx - 5.4 * k), u(cy - 3.2 * k), u(cx + 5.4 * k), u(cy + 4.6 * k)], fill=WHITE)
+def petshop(c):
+    paw(c, 16, 18.5)
+def veterinaire(c):
+    paw(c, 16, 18.5); c.rect(15, 15.4, 17, 21.4, c.cut); c.rect(13, 17.4, 19, 19.4, c.cut)
+def vetements(c):
+    c.poly([(11.5, 7.5), (13.6, 7.5), (16, 10), (18.4, 7.5), (20.5, 7.5), (26, 12), (23.3, 16), (21.5, 14.6), (21.5, 25), (10.5, 25), (10.5, 14.6), (8.7, 16), (6, 12)])
+    c.poly([(13.6, 7.5), (16, 10), (18.4, 7.5), (16, 12.2)], c.cut)
+def pharmacie(c):
+    c.rect(12.8, 7, 19.2, 25, r=1.2); c.rect(7, 12.8, 25, 19.2, r=1.2)
+    c.rect(14.6, 8.8, 17.4, 23.2, c.cut); c.rect(8.8, 14.6, 23.2, 17.4, c.cut)
+
+# Acheteurs de ressources : même pastille dorée pour tous + petite pièce en bas à droite ; le pictogramme dit la ressource.
+def euro(c, cx, cy, r, col, w):
+    c.d.arc([u(cx - r), u(cy - r), u(cx + r), u(cy + r)], 40, 320, fill=col, width=int(u(w)))
+    c.rect(cx - r - 1.4 * w, cy - 0.35 * r - w / 2, cx + 0.15 * r, cy - 0.35 * r + w / 2, col)
+    c.rect(cx - r - 1.4 * w, cy + 0.35 * r - w / 2, cx + 0.15 * r, cy + 0.35 * r + w / 2, col)
+def badge(c):
+    c.circ(24.4, 24.4, 6.4, (10, 10, 16, 255)); c.circ(24.4, 24.4, 5.4, WHITE); c.circ(24.4, 24.4, 3.7, shade(c.col, 1.15))
+    c.rect(23.7, 22, 25.1, 26.8, WHITE)
+def rachat(c):
+    euro(c, 17.5, 16, 7.5, WHITE, 2.4)
+def rachat_bois(c):
+    for x0, y0 in ((6.5, 14.5), (9.5, 8.5)):
+        c.rect(x0, y0, x0 + 13, y0 + 5.4, r=2.4); c.circ(x0 + 13, y0 + 2.7, 2.7); c.circ(x0 + 13, y0 + 2.7, 1.2, c.cut)
+    badge(c)
+def rachat_minerai(c):
+    c.poly([(7.5, 12), (11, 7.5), (21, 7.5), (24.5, 12), (16, 21.5)])
+    c.line([(7.5, 12), (24.5, 12)], 0.9, c.cut); c.line([(13, 12), (16, 21), (19, 12)], 0.9, c.cut)
+    c.line([(11, 7.5), (13, 12), (16, 7.5), (19, 12), (21, 7.5)], 0.9, c.cut); badge(c)
+def rachat_recolte(c):
+    c.circ(12.6, 16.5, 5.6); c.circ(18.2, 16.5, 5.6); c.rect(15, 9.5, 16.4, 13); c.poly([(16.4, 11), (20.5, 7.5), (22.5, 9.5), (18, 12.2)])
+    badge(c)
+def rachat_poisson(c):
+    c.d.ellipse([u(5.5), u(9.5), u(20), u(19.5)], fill=WHITE); c.poly([(18.5, 14.5), (25, 9), (25, 20)])
+    c.circ(9.8, 13.4, 1.1, c.cut); c.line([(13.5, 11), (13.5, 18)], 0.8, c.cut); badge(c)
+def rachat_petrole(c):
+    c.circ(14.5, 15.5, 6.2); c.poly([(14.5, 5.5), (20.3, 13.4), (8.7, 13.4)]); c.circ(12.4, 16.6, 1.6, c.cut)
+    badge(c)
+def boutiques(c):
+    # sac de l'application « Boutiques » du téléphone : anses, sac, rabat et losange
+    c.d.arc([u(11.5), u(6.5), u(20.5), u(15.5)], 180, 360, fill=WHITE, width=int(u(1.6)))
+    c.rect(8.5, 11, 23.5, 25, r=2.5); c.rect(8.5, 13.6, 23.5, 14.8, c.cut)
+    c.poly([(16, 16.8), (18.6, 19.4), (16, 22), (13.4, 19.4)], c.cut)
+
 # id -> (couleur, dessin)
 ICONS = {
     "garage": ((96, 125, 139), garage), "concession": ((0, 150, 199), concession), "boutique": ((251, 140, 0), boutique),
@@ -120,6 +167,12 @@ ICONS = {
     "atelier": ((117, 117, 117), atelier), "gang": ((55, 71, 79), gang), "maison": ((141, 110, 99), maison),
     "aeroport": ((3, 155, 229), aeroport), "port": ((2, 119, 189), port), "transport": ((0, 172, 193), transport),
     "loisir": ((236, 64, 122), loisir), "recolte": ((124, 179, 66), recolte),
+    "petshop": ((0, 191, 165), petshop), "vetements": ((173, 20, 87), vetements), "pharmacie": ((0, 200, 83), pharmacie),
+    "veterinaire": ((149, 117, 205), veterinaire),
+    "rachat": ((199, 145, 0), rachat), "rachat_bois": ((199, 145, 0), rachat_bois), "rachat_minerai": ((199, 145, 0), rachat_minerai),
+    "rachat_recolte": ((199, 145, 0), rachat_recolte), "rachat_poisson": ((199, 145, 0), rachat_poisson),
+    "rachat_petrole": ((199, 145, 0), rachat_petrole),
+    "boutiques": ((224, 69, 123), boutiques),
 }
 
 def make(col, fn):
@@ -135,7 +188,7 @@ if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for k, (col, fn) in ICONS.items():
         make(col, fn).save(os.path.join(OUT, k + ".png"))
-    sheet = Image.new("RGBA", (6 * 72, 4 * 72), (30, 30, 36, 255))
+    sheet = Image.new("RGBA", (6 * 72, (len(ICONS) + 5) // 6 * 72), (30, 30, 36, 255))
     for i, (k, (col, fn)) in enumerate(ICONS.items()):
         ic = make(col, fn).resize((64, 64), Image.NEAREST)
         sheet.paste(ic, ((i % 6) * 72 + 4, (i // 6) * 72 + 4), ic)

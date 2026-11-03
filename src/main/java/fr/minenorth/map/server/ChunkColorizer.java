@@ -13,11 +13,15 @@ final class ChunkColorizer {
     private static final BlockPos.MutableBlockPos POS = new BlockPos.MutableBlockPos();
     private static int sY, sWater;
     private static MapColor sColor = MapColor.NONE;
+    private static boolean sRoad;
 
     private ChunkColorizer() {}
 
-    /** Dessine le chunk dans dst (tableau de la région). Retourne true si au moins un pixel a changé. */
-    static boolean render(ServerLevel level, LevelChunk chunk, byte[] dst) {
+    /**
+     * Dessine le chunk dans dst (tableau de la région) et note ses routes dans roads (1 bit par bloc, même index).
+     * Retourne true si au moins un pixel a changé (les routes ne sont pas envoyées aux joueurs).
+     */
+    static boolean render(ServerLevel level, LevelChunk chunk, byte[] dst, byte[] roads) {
         int cx = chunk.getPos().x, cz = chunk.getPos().z;
         boolean ceiling = level.dimensionType().hasCeiling();
         int minY = level.getMinBuildHeight();
@@ -56,6 +60,8 @@ final class ChunkColorizer {
                     packed = sColor.getPackedId(br);
                 }
                 int idx = ((wz & 511) << 9) | (wx & 511);
+                if (found && sRoad) roads[idx >> 3] |= (byte) (1 << (idx & 7));
+                else roads[idx >> 3] &= (byte) ~(1 << (idx & 7));
                 if (dst[idx] != packed) {
                     dst[idx] = packed;
                     changed = true;
@@ -70,6 +76,7 @@ final class ChunkColorizer {
     private static boolean sample(ServerLevel level, LevelChunk chunk, int wx, int wz, boolean ceiling, int topY, int minY) {
         int y;
         sWater = 0;
+        sRoad = false;
         if (ceiling) {
             // Nether : on traverse le plafond puis l'air pour trouver le sol de la grotte la plus haute
             y = topY;
@@ -86,6 +93,10 @@ final class ChunkColorizer {
             if (mc != MapColor.NONE) {
                 sY = y;
                 sColor = mc;
+                // marquage au sol, tapis, dalle fine... posé sur la route : c'est le bloc dessous qui compte
+                sRoad = RoadBlocks.isRoad(st) || (y > minY && !st.isCollisionShapeFullBlock(level, POS)
+                        && RoadBlocks.isRoad(chunk.getBlockState(POS.setY(y - 1))));
+                POS.setY(y);
                 if (st.getFluidState().is(FluidTags.WATER)) {
                     int depth = 1, yy = y;
                     while (yy > minY && depth < 16) {
