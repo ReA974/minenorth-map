@@ -20,6 +20,20 @@ public final class TempWaypoints {
     private static int counter;
     /** Repères poussés par le serveur (autre mod, ex. secours) : ni limite, ni expiration, remplacés par nom. */
     private static final List<Waypoint> external = new ArrayList<>();
+    /** Glissement des repères serveur qui bougent (véhicule suivi, balise) : de l'ancienne position vers la nouvelle en {@value #GLIDE_MS} ms. */
+    private record Glide(double fx, double fy, double fz, long start) {}
+    private static final java.util.Map<String, Glide> glides = new java.util.HashMap<>();
+    private static final long GLIDE_MS = 1100;
+
+    /** Position affichée d'un repère serveur : interpolée tant que le glissement n'est pas fini (pas de saut sur la carte). */
+    private static Waypoint shown(Waypoint w) {
+        Glide gl = glides.get(w.name());
+        if (gl == null) return w;
+        double t = (System.currentTimeMillis() - gl.start()) / (double) GLIDE_MS;
+        if (t >= 1) { glides.remove(w.name()); return w; }
+        return w.withPos(w.dimension(), (int) Math.round(gl.fx() + (w.x() - gl.fx()) * t), (int) Math.round(gl.fy() + (w.y() - gl.fy()) * t),
+                (int) Math.round(gl.fz() + (w.z() - gl.fz()) * t));
+    }
 
     private TempWaypoints() {}
 
@@ -35,6 +49,7 @@ public final class TempWaypoints {
         if (ClientWaypoints.isTracked(w)) ClientWaypoints.track(null);
         entries.removeIf(e -> e.wp.name().equals(w.name()));
         external.removeIf(e -> e.name().equals(w.name()));
+        glides.remove(w.name());
     }
 
     public static boolean isTemp(Waypoint w) {
@@ -46,33 +61,42 @@ public final class TempWaypoints {
     public static List<Waypoint> all() {
         List<Waypoint> out = new ArrayList<>(entries.size() + external.size());
         for (Entry e : entries) out.add(e.wp);
-        out.addAll(external);
+        for (Waypoint e : external) out.add(shown(e));
         return Collections.unmodifiableList(out);
     }
 
     public static List<Waypoint> inDimension(String dim) {
         List<Waypoint> out = new ArrayList<>();
         for (Entry e : entries) if (e.wp.dimension().equals(dim)) out.add(e.wp);
-        for (Waypoint e : external) if (e.dimension().equals(dim)) out.add(e);
+        for (Waypoint e : external) if (e.dimension().equals(dim)) out.add(shown(e));
         return out;
     }
 
     public static Waypoint byName(String name) {
         for (Entry e : entries) if (e.wp.name().equalsIgnoreCase(name)) return e.wp;
-        for (Waypoint e : external) if (e.name().equalsIgnoreCase(name)) return e;
+        for (Waypoint e : external) if (e.name().equalsIgnoreCase(name)) return shown(e);
         return null;
     }
 
     /** Ajoute / remplace un repère venu du serveur ; guide = lance le guidage dessus. */
     public static void setExternal(Waypoint w, boolean guide) {
+        Waypoint old = null;
+        for (Waypoint e : external) if (e.name().equals(w.name())) old = e;
+        if (old != null && old.dimension().equals(w.dimension())) {
+            Waypoint from = shown(old);   // repart de là où il est affiché : pas d'à-coup si la mise à jour arrive en plein glissement
+            double d = Math.abs(from.x() - w.x()) + Math.abs(from.z() - w.z());
+            if (d > 0 && d < 400) glides.put(w.name(), new Glide(from.x(), from.y(), from.z(), System.currentTimeMillis()));
+            else glides.remove(w.name());
+        } else glides.remove(w.name());
         external.removeIf(e -> e.name().equals(w.name()));
         external.add(w);
         if (guide) ClientWaypoints.track(w);
     }
 
     public static void removeExternal(String name) {
-        Waypoint w = byName(name);
-        if (w != null && external.contains(w)) remove(w);
+        Waypoint w = null;
+        for (Waypoint e : external) if (e.name().equalsIgnoreCase(name)) w = e;
+        if (w != null) remove(w);
     }
 
     /** Retire tous les repères serveur dont le nom commence par ce préfixe ("" = tous). */
@@ -91,5 +115,6 @@ public final class TempWaypoints {
     public static void clear() {
         external.clear();
         entries.clear();
+        glides.clear();
     }
 }

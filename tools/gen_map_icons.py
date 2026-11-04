@@ -162,6 +162,24 @@ def telephone(c):
     c.rect(14.6, 7.6, 17.4, 8.4, c.cut, r=0.4); c.circ(16, 23.5, 0.9, c.cut)
     c.rect(13.6, 11.2, 18.4, 12.4, WHITE, r=0.5); c.rect(13.6, 13.8, 16.6, 15, WHITE, r=0.5)
 
+# Suivi de véhicules (mod Vol) : voiture GPS (verte), voiture volée (rouge), balise espion sur véhicule ou sur joueur (violette, ondes)
+def _car(c, y=0.0):
+    c.rect(7, 17 + y, 25, 22 + y, r=2); c.poly([(10.5, 17 + y), (13, 12.5 + y), (19.5, 12.5 + y), (22, 17 + y)])
+    c.poly([(12.2, 16 + y), (13.8, 13.5 + y), (15.6, 13.5 + y), (15.6, 16 + y)], c.cut); c.poly([(16.6, 16 + y), (16.6, 13.5 + y), (19, 13.5 + y), (20.4, 16 + y)], c.cut)
+    for x in (11.5, 20.5): c.circ(x, 22.5 + y, 2.5, WHITE); c.circ(x, 22.5 + y, 1, c.cut)
+def _waves(c, cx, cy):
+    for r in (3.2, 5.6):
+        c.d.arc([u(cx - r), u(cy - r), u(cx + r), u(cy + r)], 215, 325, fill=WHITE, width=int(u(1.3)))
+    c.circ(cx, cy, 1.4)
+def vehicule_gps(c):
+    _car(c, 1.5); _waves(c, 16, 11)
+def vehicule_vole(c):
+    _car(c, 1.5); c.rect(14.9, 4.5, 17.1, 10.5, r=1); c.circ(16, 12.3, 1.2)
+def balise(c):
+    _car(c, 2.5); _waves(c, 16, 12)
+def balise_joueur(c):
+    c.circ(16, 16.5, 3.4); c.d.pieslice([u(9.5), u(20.5), u(22.5), u(33)], 180, 360, fill=WHITE); _waves(c, 16, 11.5)
+
 # id -> (couleur, dessin)
 ICONS = {
     "garage": ((96, 125, 139), garage), "concession": ((0, 150, 199), concession), "boutique": ((251, 140, 0), boutique),
@@ -178,6 +196,8 @@ ICONS = {
     "rachat_recolte": ((199, 145, 0), rachat_recolte), "rachat_poisson": ((199, 145, 0), rachat_poisson),
     "rachat_petrole": ((199, 145, 0), rachat_petrole),
     "boutiques": ((224, 69, 123), boutiques), "telephone": ((94, 53, 177), telephone),
+    "vehicule_gps": ((48, 176, 112), vehicule_gps), "vehicule_vole": ((214, 40, 56), vehicule_vole),
+    "balise": ((176, 60, 220), balise), "balise_joueur": ((176, 60, 220), balise_joueur),
 }
 
 def make(col, fn):

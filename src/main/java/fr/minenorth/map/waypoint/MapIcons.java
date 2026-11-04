@@ -48,6 +48,11 @@ public final class MapIcons {
         add("pharmacie", "Pharmacie", 0x00C853);
         add("veterinaire", "Vétérinaire", 0x9575CD);
         add("telephone", "Téléphonie", 0x5E35B1);
+        // suivi de véhicules (mod Vol, repères poussés par le serveur) : traceur GPS du propriétaire, véhicule volé, balise espion
+        add("vehicule_gps", "Véhicule suivi (GPS)", 0x30B070);
+        add("vehicule_vole", "Véhicule volé", 0xD62838);
+        add("balise", "Balise sur véhicule", 0xB03CDC);
+        add("balise_joueur", "Balise sur personne", 0xB03CDC);
         // magasins de l'annuaire « Boutiques » du téléphone (anciens points automatiques ; à poser à la main) : même sac framboise que l'application
         add("boutiques", "Magasins (annuaire)", 0xE0457B);
         // acheteurs de ressources : même couleur dorée, une seule case dans les filtres (voir filterKey)
