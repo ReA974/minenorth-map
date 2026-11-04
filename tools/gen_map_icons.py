@@ -180,6 +180,17 @@ def balise(c):
 def balise_joueur(c):
     c.circ(16, 16.5, 3.4); c.d.pieslice([u(9.5), u(20.5), u(22.5), u(33)], 180, 360, fill=WHITE); _waves(c, 16, 11.5)
 
+# Salons (mod Identité) : ciseaux ouverts (coiffeur / barbier) et dermographe avec goutte d'encre (tatoueur)
+def coiffeur(c):
+    c.line([(10.5, 8), (19.5, 21)], 2.2); c.line([(21.5, 8), (12.5, 21)], 2.2)
+    for x in (11, 21):
+        c.circ(x, 23.2, 3.4); c.circ(x, 23.2, 1.7, c.cut)
+    c.circ(16, 14.6, 1.1, c.cut)
+def tatoueur(c):
+    c.rect(13.2, 6.5, 18.8, 17.5, r=2.2); c.rect(14.6, 9, 17.4, 15, c.cut, r=1)
+    c.rect(14.8, 17.5, 17.2, 21.5); c.line([(16, 21.5), (16, 24.2)], 1)
+    c.poly([(22.5, 18.5), (24.8, 22.6), (24.6, 24.2), (22.5, 25.6), (20.4, 24.2), (20.2, 22.6)])
+
 # id -> (couleur, dessin)
 ICONS = {
     "garage": ((96, 125, 139), garage), "concession": ((0, 150, 199), concession), "boutique": ((251, 140, 0), boutique),
@@ -198,6 +209,7 @@ ICONS = {
     "boutiques": ((224, 69, 123), boutiques), "telephone": ((94, 53, 177), telephone),
     "vehicule_gps": ((48, 176, 112), vehicule_gps), "vehicule_vole": ((214, 40, 56), vehicule_vole),
     "balise": ((176, 60, 220), balise), "balise_joueur": ((176, 60, 220), balise_joueur),
+    "coiffeur": ((0, 131, 143), coiffeur), "tatoueur": ((194, 24, 91), tatoueur),
 }
 
 def make(col, fn):

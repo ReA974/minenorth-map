@@ -48,6 +48,8 @@ public final class MapIcons {
         add("pharmacie", "Pharmacie", 0x00C853);
         add("veterinaire", "Vétérinaire", 0x9575CD);
         add("telephone", "Téléphonie", 0x5E35B1);
+        add("coiffeur", "Coiffeur / barbier", 0x00838F);
+        add("tatoueur", "Tatoueur", 0xC2185B);
         // suivi de véhicules (mod Vol, repères poussés par le serveur) : traceur GPS du propriétaire, véhicule volé, balise espion
         add("vehicule_gps", "Véhicule suivi (GPS)", 0x30B070);
         add("vehicule_vole", "Véhicule volé", 0xD62838);
@@ -103,6 +105,8 @@ public final class MapIcons {
             {"banque|\\batm\\b|distributeur|eurobank", "banque"},
             {"police|commissariat|gendarm|prison|\\bradar|\\bhack", "police"},
             {"veterinaire|\\bveto\\b", "veterinaire"},
+            {"tatou|tattoo|piercing", "tatoueur"},
+            {"coiffe|coiffure|barbier|barber|salon", "coiffeur"},
             {"pharmac|parapharm", "pharmacie"},
             {"telephon|smartphone|\\bmobile|\\bportable", "telephone"},
             {"animalerie|\\bpet ?shop|\\banimaux\\b", "petshop"},
