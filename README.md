@@ -102,6 +102,9 @@ inverse (y compris par outils d'intelligence artificielle) et utilisation pour e
 - Types de base ajoutés automatiquement avant « autre » s'ils ne sont pas dans `types` : `recolte`, `traitement`, `garage`.
 - `/carte point typegroupe <préfixe> <type>` change le type de tous les points dont le nom commence par le préfixe (ex. `Garage_`).
 
+## Terrains à bâtir sur la carte (04/11)
+`server/LandWaypoints` : un point « Terrain à vendre : nom » (ou « à louer »), icône maison, au centre de chaque terrain disponible (mod Portes, `PortesApi.lands` par réflexion). Il disparaît dès que le terrain est acquis et revient après la remise à nu. Recalculé toutes les 30 s et juste après chaque achat ou revente ; supprimé par l'admin, il ne revient pas tant que le terrain reste disponible.
+
 ## Boutiques de l'annuaire sur la carte (02/11)
 `server/ShopWaypoints` : **plus de points automatiques pour les boutiques** (03/11) : on les pose à la main (mode Édition), avec l'icône **`boutiques`** (pastille framboise `#E0457B`, sac de l'application), les pastilles dorées des acheteurs, ou la nouvelle icône **`telephone`** (« Téléphonie », pastille violette `#5E35B1`, smartphone ; devinée pour un nom avec téléphone / mobile / portable) pour le magasin de téléphones. Au démarrage, les anciens points automatiques (clés `shop:<id>`) sont retirés une fois ; ceux que l'admin avait modifiés sont gardés. Le bouton « Itinéraire » de l'application Boutiques pose toujours un repère avec l'icône `boutiques`.
 **Jar renommé** : `build/libs/minenorth-map-1.0.0.jar` (tiret ; supprimer l'ancien `minenorth_map-1.0.0.jar`, l'identifiant du mod reste `minenorth_map`). **Non testé en jeu.**

@@ -60,6 +60,7 @@ public final class MapApi {
     /** Appelé par le mod Portes après un achat, une location ou une revente : recalcule tout de suite les points des locaux d'entreprise. */
     public static void refreshBuildings(net.minecraft.server.MinecraftServer server) {
         fr.minenorth.map.server.BuildingWaypoints.reconcile(server);
+        fr.minenorth.map.server.LandWaypoints.reconcile(server);
     }
 
     private static void send(ServerPlayer p, MarkerPacket pkt) {

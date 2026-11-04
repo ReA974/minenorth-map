@@ -88,11 +88,11 @@ public final class BuildingWaypoints {
 
         boolean changed = false;
         // un local qui n'est plus à une entreprise : le refus de l'admin est oublié
-        if (data.suppressed().removeIf(k -> !k.startsWith(ShopWaypoints.KEY) && !wanted.containsKey(k))) { data.setDirty(); changed = true; }
+        if (data.suppressed().removeIf(k -> !k.startsWith(ShopWaypoints.KEY) && !k.startsWith(LandWaypoints.KEY) && !wanted.containsKey(k))) { data.setDirty(); changed = true; }
 
         // 1) retirer les points dont le local n'est plus voulu
         for (Map.Entry<String, String> e : new ArrayList<>(data.autoMap().entrySet())) {
-            if (e.getKey().startsWith(ShopWaypoints.KEY) || wanted.containsKey(e.getKey())) continue;   // points des boutiques : ShopWaypoints
+            if (e.getKey().startsWith(ShopWaypoints.KEY) || e.getKey().startsWith(LandWaypoints.KEY) || wanted.containsKey(e.getKey())) continue;   // points des boutiques : ShopWaypoints
             data.remove(e.getValue());
             data.autoMap().remove(e.getKey());
             data.setDirty();
