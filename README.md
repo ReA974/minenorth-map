@@ -108,3 +108,6 @@ inverse (y compris par outils d'intelligence artificielle) et utilisation pour e
 ## Boutiques de l'annuaire sur la carte (02/11)
 `server/ShopWaypoints` : **plus de points automatiques pour les boutiques** (03/11) : on les pose à la main (mode Édition), avec l'icône **`boutiques`** (pastille framboise `#E0457B`, sac de l'application), les pastilles dorées des acheteurs, ou la nouvelle icône **`telephone`** (« Téléphonie », pastille violette `#5E35B1`, smartphone ; devinée pour un nom avec téléphone / mobile / portable) pour le magasin de téléphones. Au démarrage, les anciens points automatiques (clés `shop:<id>`) sont retirés une fois ; ceux que l'admin avait modifiés sont gardés. Le bouton « Itinéraire » de l'application Boutiques pose toujours un repère avec l'icône `boutiques`.
 **Jar renommé** : `build/libs/minenorth-map-1.0.0.jar` (tiret ; supprimer l'ancien `minenorth_map-1.0.0.jar`, l'identifiant du mod reste `minenorth_map`). **Non testé en jeu.**
+
+## Repère le plus proche (05/11)
+`MapApi.nearestWaypoint(serveur, dimension, x, z, "icone1,icone2")` renvoie `« nom;x;y;z »` du point serveur le plus proche dont l'icône (choisie, sinon devinée d'après le type ou le nom) est l'une de celles demandées, ou `null`. Utilisé par le mod Bienvenue (banque, garage, mairie, premier boulot).
