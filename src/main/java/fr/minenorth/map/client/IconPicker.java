@@ -29,6 +29,9 @@ public final class IconPicker {
 
     public int height() { return ((ids.size() + cols - 1) / cols) * CELL; }
 
+    /** Hauteur de la grille avant sa création (case « aucune / automatique » + toutes les icônes) : les écrans s'agrandissent avec elle. */
+    public static int heightFor(int cols) { return ((MapIcons.all().size() + 1 + cols - 1) / cols) * CELL; }
+
     private int indexAt(double mx, double my) {
         int c = (int) Math.floor((mx - x) / CELL), r = (int) Math.floor((my - y) / CELL);
         if (mx < x || my < y || c < 0 || c >= cols || r < 0) return -1;

@@ -57,7 +57,8 @@ public class PointEditScreen extends Screen {
         this.icon = w.icon();
     }
 
-    private int h() { return editing == null ? 196 : 226; }
+    /** Hauteur selon le nombre d'icônes : les boutons du bas restent toujours sous la grille (plus d'icône par-dessus « Supprimer »). */
+    private int h() { return pickerY() + IconPicker.heightFor(12) + 42; }
     private int pickerY() { return editing == null ? 94 : 142; }
 
     @Override

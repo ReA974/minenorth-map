@@ -18,7 +18,9 @@ import java.util.List;
  * qui revérifie le droit et renvoie les points à tout le monde.
  */
 public class WaypointEditScreen extends Screen {
-    private static final int W = 270, H = 234;
+    private static final int W = 270;
+    /** Hauteur selon le nombre d'icônes (grille en y + 130) : les boutons du bas restent sous la grille. */
+    private static int panelH() { return 130 + IconPicker.heightFor(12) + 44; }
 
     private final Screen parent;
     /** Point modifié, ou null pour un nouveau point. */
@@ -73,7 +75,7 @@ public class WaypointEditScreen extends Screen {
 
     @Override
     protected void init() {
-        int x = (width - W) / 2, y = (height - H) / 2;
+        int x = (width - W) / 2, y = (height - panelH()) / 2;
         picker = new IconPicker(x + 10, y + 130, 12, picker != null ? picker.selected() : initialIcon, "Automatique (selon le type et le nom)");
         nameBox = new EditBox(font, x + 10, y + 28, W - 20, 16, Component.literal("Nom"));
         nameBox.setMaxLength(32);
@@ -98,7 +100,7 @@ public class WaypointEditScreen extends Screen {
         }).bounds(x + 10, y + 96, W - 20, 18).build());
 
         addRenderableWidget(Button.builder(Component.literal("§aEnregistrer"), b -> save())
-                .bounds(x + 10, y + H - 26, editing != null ? 70 : 115, 18).build());
+                .bounds(x + 10, y + panelH() - 26, editing != null ? 70 : 115, 18).build());
         if (editing != null) {
             addRenderableWidget(Button.builder(Component.literal("Ma position"), b -> {
                 Minecraft mc = Minecraft.getInstance();
@@ -106,7 +108,7 @@ public class WaypointEditScreen extends Screen {
                 send(new WaypointEditPacket(WaypointEditPacket.MOVE, editing.name(), "", "", -1,
                         mc.level.dimension().location().toString(), mc.player.getBlockX(), mc.player.getBlockY(), mc.player.getBlockZ(), ""));
                 onClose();
-            }).bounds(x + 84, y + H - 26, 72, 18).build());
+            }).bounds(x + 84, y + panelH() - 26, 72, 18).build());
             deleteBtn = addRenderableWidget(Button.builder(Component.literal("§cSupprimer"), b -> {
                 if (!confirmDelete) {
                     confirmDelete = true;
@@ -116,11 +118,11 @@ public class WaypointEditScreen extends Screen {
                 send(new WaypointEditPacket(WaypointEditPacket.REMOVE, editing.name(), "", "", -1, "", 0, 0, 0, ""));
                 if (ClientWaypoints.isTracked(editing)) ClientWaypoints.track(null);
                 onClose();
-            }).bounds(x + 160, y + H - 26, 80, 18).build());
+            }).bounds(x + 160, y + panelH() - 26, 80, 18).build());
         }
         if (editing == null) {
             addRenderableWidget(Button.builder(Component.literal("Annuler"), b -> onClose())
-                    .bounds(x + 125, y + H - 26, 115, 18).build());
+                    .bounds(x + 125, y + panelH() - 26, 115, 18).build());
         }
         refreshButtons();
     }
@@ -175,9 +177,9 @@ public class WaypointEditScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mx, int my, float pt) {
         renderBackground(g);
-        int x = (width - W) / 2, y = (height - H) / 2;
-        g.fill(x - 1, y - 1, x + W + 1, y + H + 1, 0xFF8B7355);
-        g.fill(x, y, x + W, y + H, 0xF0141418);
+        int x = (width - W) / 2, y = (height - panelH()) / 2;
+        g.fill(x - 1, y - 1, x + W + 1, y + panelH() + 1, 0xFF8B7355);
+        g.fill(x, y, x + W, y + panelH(), 0xF0141418);
         g.drawCenteredString(font, title, width / 2, y + 8, 0xFFFFD27A);
         g.drawString(font, "Nom", x + 10, y + 18, 0xFF888888, false);
         g.drawString(font, "Type", x + 10, y + 52, 0xFF888888, false);
@@ -186,7 +188,7 @@ public class WaypointEditScreen extends Screen {
         g.drawString(font, pos, x + W - 10 - font.width(pos), y + 8, 0xFF777777, false);
         g.drawString(font, "Icône sur la carte", x + 10, y + 120, 0xFF888888, false);
         picker.render(g, font, mx, my);
-        if (!error.isEmpty()) g.drawCenteredString(font, error, width / 2, y + H - 38, 0xFFFF5555);
+        if (!error.isEmpty()) g.drawCenteredString(font, error, width / 2, y + panelH() - 38, 0xFFFF5555);
         super.render(g, mx, my, pt);
         String tip = picker.hoverLabel(mx, my);
         if (tip != null) g.renderTooltip(font, Component.literal(tip), mx, my);
