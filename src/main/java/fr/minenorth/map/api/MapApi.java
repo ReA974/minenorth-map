@@ -50,20 +50,27 @@ public final class MapApi {
 
     /**
      * Point de repère serveur le plus proche de (x, z) dans la dimension dim dont l'icône (choisie ou devinée d'après le nom) est
-     * l'une de celles demandées (ids séparés par des virgules, ex. « banque » ou « garage,concession »).
+     * l'une de celles demandées (ids séparés par des virgules, ex. « banque » ou « garage,concession »), ou dont le nom contient
+     * l'un des mots « nom:mot » (ex. « nom:auto-école »).
      * Renvoie « nom;x;y;z », ou null s'il n'y en a aucun. Utilisé par le mod Bienvenue (parcours guidé des nouveaux joueurs).
      */
     public static String nearestWaypoint(net.minecraft.server.MinecraftServer server, String dim, int x, int z, String icons) {
         if (icons == null || icons.isBlank()) return null;
         java.util.Set<String> wanted = new java.util.HashSet<>();
-        for (String s : icons.split(",")) if (!s.isBlank()) wanted.add(s.trim());
+        java.util.List<String> words = new java.util.ArrayList<>();
+        for (String s : icons.split(",")) {
+            if (s.isBlank()) continue;
+            if (s.trim().startsWith("nom:")) words.add(s.trim().substring(4).toLowerCase(java.util.Locale.ROOT));
+            else wanted.add(s.trim());
+        }
         fr.minenorth.map.waypoint.Waypoint best = null;
         double bd = Double.MAX_VALUE;
         for (fr.minenorth.map.waypoint.Waypoint w : fr.minenorth.map.waypoint.WaypointSavedData.get(server).all()) {
             if (dim != null && !dim.equals(w.dimension())) continue;
             String ic = fr.minenorth.map.waypoint.MapIcons.resolve(w);
             if (ic.isEmpty()) ic = fr.minenorth.map.waypoint.MapIcons.guess(w.name());
-            if (!wanted.contains(ic)) continue;
+            String low = w.name().toLowerCase(java.util.Locale.ROOT);
+            if (!wanted.contains(ic) && words.stream().noneMatch(low::contains)) continue;
             double d = (double) (w.x() - x) * (w.x() - x) + (double) (w.z() - z) * (w.z() - z);
             if (d < bd) {
                 bd = d;
