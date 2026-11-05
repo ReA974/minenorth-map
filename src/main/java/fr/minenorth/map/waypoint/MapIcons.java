@@ -38,6 +38,7 @@ public final class MapIcons {
         add("atelier", "Atelier", 0x757575);
         add("gang", "Gang / territoire", 0x37474F);
         add("maison", "Maison", 0x8D6E63);
+        add("location", "Bien loué", 0x26A6C9);   // repère « Ma location » (mod Portes) ; « maison » pour un bien acheté
         add("aeroport", "Aéroport", 0x039BE5);
         add("port", "Port", 0x0277BD);
         add("transport", "Transport", 0x00ACC1);

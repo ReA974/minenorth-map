@@ -191,6 +191,11 @@ def tatoueur(c):
     c.rect(14.8, 17.5, 17.2, 21.5); c.line([(16, 21.5), (16, 24.2)], 1)
     c.poly([(22.5, 18.5), (24.8, 22.6), (24.6, 24.2), (22.5, 25.6), (20.4, 24.2), (20.2, 22.6)])
 
+# Bien loué (repère « Ma location », mod Portes) : clé
+def location(c):
+    c.circ(11.5, 16, 5.2); c.circ(11.5, 16, 2.1, c.cut)
+    c.rect(15.5, 14.6, 25.5, 17.4, r=0.8); c.rect(21, 17, 23, 21); c.rect(24, 17, 25.5, 20)
+
 # id -> (couleur, dessin)
 ICONS = {
     "garage": ((96, 125, 139), garage), "concession": ((0, 150, 199), concession), "boutique": ((251, 140, 0), boutique),
@@ -210,6 +215,7 @@ ICONS = {
     "vehicule_gps": ((48, 176, 112), vehicule_gps), "vehicule_vole": ((214, 40, 56), vehicule_vole),
     "balise": ((176, 60, 220), balise), "balise_joueur": ((176, 60, 220), balise_joueur),
     "coiffeur": ((0, 131, 143), coiffeur), "tatoueur": ((194, 24, 91), tatoueur),
+    "location": ((38, 166, 201), location),
 }
 
 def make(col, fn):
