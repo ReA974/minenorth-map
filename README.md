@@ -112,3 +112,8 @@ inverse (y compris par outils d'intelligence artificielle) et utilisation pour e
 ## Repère le plus proche (05/11)
 `MapApi.nearestWaypoint(serveur, dimension, x, z, "icone1,icone2")` renvoie `« nom;x;y;z »` du point serveur le plus proche dont l'icône (choisie, sinon devinée d'après le type ou le nom) est l'une de celles demandées, ou `null`. Utilisé par le mod Bienvenue (banque, garage, mairie, premier boulot).
 `nearestWaypoint` accepte aussi des mots « nom:mot » (ex. `nom:auto-école`) : point dont le nom contient ce mot (auto-école du parcours Bienvenue).
+
+## Bandeau de guidage partagé (05/11)
+`MinimapOverlay.hiddenGuidePrefix` (client) : un mod qui affiche lui-même le guidage de ses repères (ex. « Bienvenue », HUD du parcours des
+nouveaux joueurs) masque le bandeau en haut de l'écran pour les repères dont le nom commence ainsi. `MinimapOverlay.guideBannerBottom` donne le bas
+du bandeau affiché (0 = aucun) pour se placer dessous. Le HUD Bienvenue reprend la distance « par la route » (`GpsRoute.remaining`).

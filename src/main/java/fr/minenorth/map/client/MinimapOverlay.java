@@ -27,6 +27,7 @@ public final class MinimapOverlay {
         String dim = mc.level.dimension().location().toString();
 
         if (ClientConfig.SHOW_GUIDE.get()) renderGuide(g, mc.font, sw, px, pz, yaw, dim);
+        else guideBannerBottom = 0;
 
         if (!ClientConfig.MINIMAP_ENABLED.get() || mc.options.renderDebug) return;
 
@@ -93,9 +94,19 @@ public final class MinimapOverlay {
         }
     }
 
+    /**
+     * Pour les autres mods (par réflexion, côté client) : repères guidés dont ce mod affiche lui-même le bandeau (préfixe du nom,
+     * ex. « Bienvenue » : le HUD du parcours fusionne GPS et étape), et bas du bandeau de guidage dessiné à la dernière image (0 = aucun).
+     */
+    public static volatile String hiddenGuidePrefix;
+    public static volatile int guideBannerBottom;
+
     private static void renderGuide(GuiGraphics g, Font font, int sw, double px, double pz, float yaw, String dim) {
+        guideBannerBottom = 0;
         Waypoint t = ClientWaypoints.getTracked();
         if (t == null) return;
+        String hide = hiddenGuidePrefix;
+        if (hide != null && !hide.isEmpty() && t.name().startsWith(hide)) return;
         String text;
         float[] dir = null;
         if (!t.dimension().equals(dim)) {
@@ -123,5 +134,6 @@ public final class MinimapOverlay {
             textX = bx + 17;
         }
         g.drawString(font, text, textX, by + 4, 0xFFFFFFFF, true);
+        guideBannerBottom = by + 16;
     }
 }
